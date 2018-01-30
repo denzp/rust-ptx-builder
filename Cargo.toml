@@ -1,0 +1,7 @@
+[package]
+name = "ptx-builder"
+version = "0.1.0"
+authors = ["Denys Zariaiev <denys.zariaiev@gmail.com>"]
+
+[dependencies]
+error-chain = "0.11"
