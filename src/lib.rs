@@ -3,13 +3,18 @@
 #[macro_use]
 extern crate error_chain;
 
+extern crate colored;
+
 pub mod error;
 pub mod executable;
 
 pub mod project;
 pub mod builder;
 pub mod target;
+pub mod reporter;
 
 pub mod prelude {
     pub use builder::Builder;
+    pub use reporter::CargoBuildReporter;
+    pub use error::Result;
 }

@@ -5,3 +5,4 @@ authors = ["Denys Zariaiev <denys.zariaiev@gmail.com>"]
 
 [dependencies]
 error-chain = "0.11"
+colored = "1.6"

@@ -1,15 +1,17 @@
+use colored::*;
+
 error_chain! {
     errors {
         CommandNotFound(command: String, hint: String) {
-            display("Command not found in PATH: '{}'. {}.", command, hint),
+            display("Command not found in PATH: '{}'. {}.", command.bold(), hint.underline()),
         }
 
         CommandFailed(command: String, code: i32, stderr: String) {
-            display("Command failed: '{}', code {}.", command, code),
+            display("Command failed: '{}' with code '{}' and output:\n{}", command.bold(), code, stderr.trim()),
         }
 
         BuildFailed(diagnostics: Vec<String>) {
-            display("Build failed:\n{}", diagnostics.join("\n")),
+            display("{}\n{}", "Unable to build a PTX crate!".bold(), diagnostics.join("\n")),
         }
     }
 

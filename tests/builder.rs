@@ -45,7 +45,11 @@ fn should_write_assembly() {
 
 #[test]
 fn should_report_about_build_failure() {
-    let output = Builder::new("tests/fixtures/faulty-crate").unwrap().build();
+    let output = Builder::new("tests/fixtures/faulty-crate")
+        .as_mut()
+        .unwrap()
+        .disable_colors()
+        .build();
 
     match output {
         Err(Error(ErrorKind::BuildFailed(diagnostics), _)) => {

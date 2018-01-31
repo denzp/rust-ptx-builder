@@ -8,6 +8,8 @@ use executable::{ExecutableRunner, Xargo};
 pub struct Builder {
     project: Project,
     target: TargetInfo,
+
+    colors: bool,
 }
 
 pub struct Output {
@@ -19,16 +21,30 @@ impl Builder {
         Ok(Builder {
             project: Project::analyze(path).chain_err(|| "Unable to initialize project")?,
             target: TargetInfo::new().chain_err(|| "Unable to get PTX target details")?,
+
+            colors: true,
         })
     }
 
-    pub fn build(self) -> Result<Output> {
+    pub fn disable_colors(&mut self) -> &mut Self {
+        self.colors = false;
+        self
+    }
+
+    pub fn build(&mut self) -> Result<Output> {
         let mut xargo = ExecutableRunner::new(Xargo);
 
         xargo
             .with_args(&[
                 "build",
                 "--release",
+                "--color",
+                {
+                    match self.colors {
+                        true => "always",
+                        false => "never",
+                    }
+                },
                 "--target",
                 self.target.get_target_name(),
             ])
