@@ -19,6 +19,7 @@ impl Project {
         let output = ExecutableRunner::new(Cargo)
             .with_args(&["rustc", "-q", "--", "--print", "crate-name"])
             .with_cwd(path.as_path())
+            .with_env("CARGO_TARGET_DIR", env::temp_dir())
             .run()?;
 
         Ok(Project {
