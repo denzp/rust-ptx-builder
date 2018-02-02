@@ -2,6 +2,7 @@ extern crate ptx_builder;
 
 use std::io::prelude::*;
 use std::fs::{remove_dir_all, File};
+use std::env::current_dir;
 
 use ptx_builder::error::*;
 use ptx_builder::project::Project;
@@ -46,27 +47,39 @@ fn should_write_assembly() {
 #[test]
 fn should_report_about_build_failure() {
     let output = Builder::new("tests/fixtures/faulty-crate")
-        .as_mut()
         .unwrap()
         .disable_colors()
         .build();
 
+    let crate_absoulte_path = current_dir().unwrap().join("tests/fixtures/faulty-crate");
+
     match output {
         Err(Error(ErrorKind::BuildFailed(diagnostics), _)) => {
-            assert_eq!(diagnostics, &[
-                "   Compiling faulty-ptx_crate v0.1.0 (file:///home/den/rust-ptx-builder/tests/fixtures/faulty-crate)",
-                "error[E0425]: cannot find function `external_fn` in this scope",
-                " --> src/lib.rs:6:20",
-                "  |",
-                "6 |     *y.offset(0) = external_fn(*x.offset(0)) * a;",
-                "  |                    ^^^^^^^^^^^ not found in this scope",
-                "",
-                "error: aborting due to previous error",
-                "",
-                "error: Could not compile `faulty-ptx_crate`.",
-                "",
-                "To learn more, run the command again with --verbose.",
-            ]);
+            assert_eq!(
+                diagnostics
+                    .into_iter()
+                    .filter(|item| !item.contains("Blocking waiting")
+                        && !item.contains("Compiling core")
+                        && !item.contains("Finished release [optimized] target(s)"))
+                    .collect::<Vec<_>>(),
+                &[
+                    format!(
+                        "   Compiling faulty-ptx_crate v0.1.0 (file://{})",
+                        crate_absoulte_path.as_path().to_str().unwrap()
+                    ),
+                    String::from("error[E0425]: cannot find function `external_fn` in this scope"),
+                    String::from(" --> src/lib.rs:6:20"),
+                    String::from("  |"),
+                    String::from("6 |     *y.offset(0) = external_fn(*x.offset(0)) * a;"),
+                    String::from("  |                    ^^^^^^^^^^^ not found in this scope"),
+                    String::from(""),
+                    String::from("error: aborting due to previous error"),
+                    String::from(""),
+                    String::from("error: Could not compile `faulty-ptx_crate`."),
+                    String::from(""),
+                    String::from("To learn more, run the command again with --verbose."),
+                ]
+            );
         }
 
         Ok(_) => unreachable!("it should fail"),
