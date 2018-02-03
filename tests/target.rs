@@ -24,7 +24,7 @@ fn should_provide_definitions_path() {
 fn should_store_json_definition() {
     remove_dir_all("/tmp/ptx-builder-targets").unwrap_or_default();
 
-    let target = TargetInfo::new().unwrap();
+    TargetInfo::new().unwrap();
     let path = PathBuf::from("/tmp/ptx-builder-targets/nvptx64-nvidia-cuda.json");
 
     let mut contents = String::new();

@@ -3,12 +3,12 @@ use colored::*;
 
 use error::*;
 
-pub struct CargoBuildReporter {
+pub struct BuildReporter {
     error: Error,
     colors: bool,
 }
 
-impl CargoBuildReporter {
+impl BuildReporter {
     pub fn report(error: Error) -> Self {
         Self {
             error,
@@ -17,7 +17,7 @@ impl CargoBuildReporter {
     }
 }
 
-impl CargoBuildReporter {
+impl BuildReporter {
     pub fn disable_colors(&mut self) -> &mut Self {
         self.colors = false;
         self
@@ -26,10 +26,6 @@ impl CargoBuildReporter {
 
 trait StringExt {
     fn prefix_each_line<T>(self, prefix: T) -> Self
-    where
-        T: ToString;
-
-    fn prefix_each_line_hidden<T>(self, prefix: T) -> Self
     where
         T: ToString;
 }
@@ -41,15 +37,9 @@ impl StringExt for String {
 
         owned_prefix + &self.split("\n").collect::<Vec<_>>().join(&glue)
     }
-
-    fn prefix_each_line_hidden<T: ToString>(self, prefix: T) -> Self {
-        let length = prefix.to_string().len();
-
-        self.prefix_each_line(prefix.to_string() + "\r" + &" ".repeat(length) + "\r")
-    }
 }
 
-impl fmt::Display for CargoBuildReporter {
+impl fmt::Display for BuildReporter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         control::set_override(self.colors);
 
@@ -59,24 +49,19 @@ impl fmt::Display for CargoBuildReporter {
             self.error
                 .to_string()
                 .prefix_each_line("[PTX] ".bright_black())
-                .prefix_each_line_hidden("cargo:warning=")
         )?;
 
         for next in self.error.iter().skip(1) {
             writeln!(
                 f,
                 "{}",
-                String::from("\n caused by:")
-                    .prefix_each_line("[PTX]".bright_black())
-                    .prefix_each_line_hidden("cargo:warning=")
+                String::from("\n caused by:").prefix_each_line("[PTX]".bright_black())
             )?;
 
             writeln!(
                 f,
                 "{}",
-                next.to_string()
-                    .prefix_each_line("[PTX]   ".bright_black())
-                    .prefix_each_line_hidden("cargo:warning=")
+                next.to_string().prefix_each_line("[PTX]   ".bright_black())
             )?;
         }
 

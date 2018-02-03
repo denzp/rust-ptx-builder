@@ -15,6 +15,6 @@ pub mod reporter;
 
 pub mod prelude {
     pub use builder::Builder;
-    pub use reporter::CargoBuildReporter;
+    pub use reporter::BuildReporter;
     pub use error::Result;
 }
