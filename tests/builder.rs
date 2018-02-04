@@ -86,3 +86,29 @@ fn should_report_about_build_failure() {
         Err(_) => unreachable!("it should fail with proper error"),
     }
 }
+
+#[test]
+fn should_provide_crate_source_files() {
+    let output = Builder::new("tests/fixtures/sample-crate")
+        .unwrap()
+        .build()
+        .unwrap();
+
+    let mut sources = output.source_files().unwrap();
+    sources.sort();
+
+    assert_eq!(
+        sources,
+        &[
+            current_dir()
+                .unwrap()
+                .join("tests/fixtures/sample-crate/src/lib.rs"),
+            current_dir()
+                .unwrap()
+                .join("tests/fixtures/sample-crate/src/mod1.rs"),
+            current_dir()
+                .unwrap()
+                .join("tests/fixtures/sample-crate/src/mod2.rs"),
+        ]
+    );
+}

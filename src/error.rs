@@ -13,6 +13,10 @@ error_chain! {
         BuildFailed(diagnostics: Vec<String>) {
             display("{}\n{}", "Unable to build a PTX crate!".bold(), diagnostics.join("\n")),
         }
+
+        InternalError(reason: String) {
+            display("{}: {}", "Internal error".bold(), reason),
+        }
     }
 
     foreign_links {
