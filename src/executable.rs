@@ -79,9 +79,12 @@ impl<Ex: Executable> ExecutableRunner<Ex> {
         }
 
         let raw_output = {
-            self.command
-                .output()
-                .chain_err(|| "Unable to execute the command")?
+            self.command.output().chain_err(|| {
+                ErrorKind::InternalError(format!(
+                    "Unable to execute command '{}'",
+                    self.executable.get_name()
+                ))
+            })?
         };
 
         let output = Output {

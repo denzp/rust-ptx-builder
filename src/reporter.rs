@@ -43,7 +43,7 @@ impl fmt::Display for BuildReporter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         control::set_override(self.colors);
 
-        writeln!(
+        write!(
             f,
             "{}",
             self.error
@@ -52,15 +52,15 @@ impl fmt::Display for BuildReporter {
         )?;
 
         for next in self.error.iter().skip(1) {
-            writeln!(
+            write!(
                 f,
-                "{}",
+                "\n{}",
                 String::from("\n caused by:").prefix_each_line("[PTX]".bright_black())
             )?;
 
-            writeln!(
+            write!(
                 f,
-                "{}",
+                "\n{}",
                 next.to_string().prefix_each_line("[PTX]   ".bright_black())
             )?;
         }

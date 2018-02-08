@@ -22,8 +22,8 @@ pub struct Output {
 impl Builder {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         Ok(Builder {
-            project: Project::analyze(path).chain_err(|| "Unable to initialize project")?,
-            target: TargetInfo::new().chain_err(|| "Unable to get PTX target details")?,
+            project: Project::analyze(path).chain_err(|| "Unable to analyze project")?,
+            target: TargetInfo::new().chain_err(|| "Unable to get target details")?,
 
             colors: true,
         })

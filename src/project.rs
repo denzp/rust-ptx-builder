@@ -1,4 +1,5 @@
 use std::env;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -16,11 +17,21 @@ impl Project {
     pub fn analyze<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path = env::current_dir()?.join(&path);
 
+        match fs::metadata(path.as_path()) {
+            Ok(metadata) => if !metadata.is_dir() {
+                bail!(ErrorKind::InvalidCratePath(path.clone()));
+            },
+            Err(_) => {
+                bail!(ErrorKind::InvalidCratePath(path.clone()));
+            }
+        }
+
         let output = ExecutableRunner::new(Cargo)
             .with_args(&["rustc", "-q", "--", "--print", "crate-name"])
             .with_cwd(path.as_path())
             .with_env("CARGO_TARGET_DIR", env::temp_dir())
-            .run()?;
+            .run()
+            .chain_err(|| "Unable to get crate name with cargo")?;
 
         Ok(Project {
             path,

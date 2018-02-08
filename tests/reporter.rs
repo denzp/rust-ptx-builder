@@ -37,7 +37,6 @@ fn should_report_in_cargo_style() {
 [PTX]   Command failed: 'some_name' with code '0' and output:
 [PTX]   some
 [PTX]   multiline
-[PTX]   output
-"
+[PTX]   output"
     );
 }
