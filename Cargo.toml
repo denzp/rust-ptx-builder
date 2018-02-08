@@ -1,8 +1,19 @@
 [package]
 name = "ptx-builder"
 version = "0.1.0"
+description = "NVPTX build helper"
 authors = ["Denys Zariaiev <denys.zariaiev@gmail.com>"]
+repository = "https://github.com/denzp/rust-ptx-builder"
+readme = "README.md"
+license = "MIT"
+
+exclude = [
+    "tests/**/*",
+]
 
 [dependencies]
 error-chain = "0.11"
 colored = "1.6"
+
+[badges]
+travis-ci = { repository = "denzp/rust-ptx-builder", branch = "master" }
