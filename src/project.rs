@@ -1,30 +1,56 @@
 use std::env;
 use std::fs;
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
+use toml;
 
 use error::*;
 use executable::{Cargo, ExecutableRunner};
+use proxy::ProxyCrate;
+
+pub trait Crate {
+    fn get_name(&self) -> &str;
+    fn get_rustc_name(&self) -> &str;
+    fn get_path(&self) -> &Path;
+}
 
 #[derive(Hash)]
 pub struct Project {
     path: PathBuf,
+
     name: String,
+    rustc_name: String,
 }
 
 impl Project {
     pub fn analyze<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path = env::current_dir()?.join(&path);
 
-        match fs::metadata(path.as_path()) {
-            Ok(metadata) => if !metadata.is_dir() {
+        match fs::metadata(path.join("Cargo.toml")) {
+            Ok(metadata) => if metadata.is_dir() {
                 bail!(ErrorKind::InvalidCratePath(path.clone()));
             },
             Err(_) => {
                 bail!(ErrorKind::InvalidCratePath(path.clone()));
             }
         }
+
+        let cargo_toml: toml::Value = {
+            let mut reader = BufReader::new(fs::File::open(path.join("Cargo.toml"))?);
+            let mut contents = String::new();
+
+            reader.read_to_string(&mut contents)?;
+            toml::from_str(&contents)?
+        };
+
+        let cargo_toml_name = match cargo_toml["package"]["name"].as_str() {
+            Some(name) => name,
+            None => {
+                bail!(ErrorKind::InternalError(String::from(
+                    "Cannot get crate name"
+                )));
+            }
+        };
 
         let output = ExecutableRunner::new(Cargo)
             .with_args(&["rustc", "-q", "--", "--print", "crate-name"])
@@ -35,31 +61,26 @@ impl Project {
 
         Ok(Project {
             path,
-            name: String::from(output.stdout.trim()),
+            name: String::from(cargo_toml_name),
+            rustc_name: String::from(output.stdout.trim()),
         })
     }
 
-    pub fn get_name(&self) -> &str {
+    pub fn get_proxy_crate(&self) -> Result<ProxyCrate> {
+        ProxyCrate::new(self)
+    }
+}
+
+impl Crate for Project {
+    fn get_rustc_name(&self) -> &str {
+        &self.rustc_name
+    }
+
+    fn get_name(&self) -> &str {
         &self.name
     }
 
-    pub fn get_crate_path(&self) -> &Path {
+    fn get_path(&self) -> &Path {
         &self.path.as_path()
-    }
-
-    pub fn get_hash(&self) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        self.hash(&mut hasher);
-
-        hasher.finish()
-    }
-
-    pub fn get_output_path(&self) -> PathBuf {
-        let mut path = env::temp_dir().join("ptx-builder");
-
-        path.push(format!("{:x}", self.get_hash()));
-        path.push(&self.name);
-
-        path
     }
 }

@@ -27,5 +27,6 @@ error_chain! {
     foreign_links {
         Utf8Error(::std::string::FromUtf8Error);
         Io(::std::io::Error);
+        TomlError(::toml::de::Error);
     }
 }

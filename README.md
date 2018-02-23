@@ -32,7 +32,7 @@ First, you need to specify a build script in host crate's `Cargo.toml` and decla
 build = "build.rs"
 
 [build-dependencies]
-ptx-builder = "0.1"
+ptx-builder = "0.2"
 ```
 
 Then, typical `build.rs` might look like:

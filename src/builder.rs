@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 
 use error::*;
-use project::Project;
+use project::{Crate, Project};
 use target::TargetInfo;
 use executable::{ExecutableRunner, Xargo};
 
@@ -35,7 +35,16 @@ impl Builder {
     }
 
     pub fn build(&mut self) -> Result<Output> {
+        let mut proxy = {
+            self.project
+                .get_proxy_crate()
+                .chain_err(|| "Unable to create proxy crate")?
+        };
         let mut xargo = ExecutableRunner::new(Xargo);
+
+        proxy
+            .initialize()
+            .chain_err(|| "Unable to initialize proxy crate")?;
 
         xargo
             .with_args(&[
@@ -51,8 +60,8 @@ impl Builder {
                 "--target",
                 self.target.get_target_name(),
             ])
-            .with_cwd(self.project.get_crate_path())
-            .with_env("CARGO_TARGET_DIR", self.project.get_output_path())
+            .with_cwd(proxy.get_path())
+            .with_env("CARGO_TARGET_DIR", proxy.get_output_path())
             .with_env("RUST_TARGET_PATH", self.target.get_path());
 
         xargo.run().map_err(|error| match error {
@@ -69,10 +78,7 @@ impl Builder {
             _ => error,
         })?;
 
-        Ok(Output::new(
-            self.project.get_output_path(),
-            self.project.get_name(),
-        ))
+        Ok(Output::new(proxy.get_output_path(), proxy.get_name()))
     }
 }
 

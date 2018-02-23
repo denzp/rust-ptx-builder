@@ -4,6 +4,7 @@
 extern crate error_chain;
 
 extern crate colored;
+extern crate toml;
 
 pub mod error;
 pub mod executable;
@@ -11,6 +12,7 @@ pub mod executable;
 pub mod project;
 pub mod builder;
 pub mod target;
+pub mod proxy;
 pub mod reporter;
 
 pub mod prelude {

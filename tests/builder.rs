@@ -5,7 +5,7 @@ use std::fs::{remove_dir_all, File};
 use std::env::current_dir;
 
 use ptx_builder::error::*;
-use ptx_builder::project::Project;
+use ptx_builder::project::{Crate, Project};
 use ptx_builder::builder::Builder;
 
 #[test]
@@ -19,15 +19,17 @@ fn should_provide_output_path() {
     assert_eq!(
         output.get_assembly_path(),
         project
+            .get_proxy_crate()
+            .unwrap()
             .get_output_path()
-            .join("nvptx64-nvidia-cuda/release/sample_ptx_crate.ptx")
+            .join("nvptx64-nvidia-cuda/release/proxy.ptx")
     );
 }
 
 #[test]
 fn should_write_assembly() {
     let project = Project::analyze("tests/fixtures/sample-crate").unwrap();
-    remove_dir_all(project.get_output_path()).unwrap_or_default();
+    remove_dir_all(project.get_proxy_crate().unwrap().get_output_path()).unwrap_or_default();
 
     let output = Builder::new("tests/fixtures/sample-crate")
         .unwrap()
@@ -68,7 +70,10 @@ fn should_report_about_build_failure() {
                         crate_absoulte_path.as_path().to_str().unwrap()
                     ),
                     String::from("error[E0425]: cannot find function `external_fn` in this scope"),
-                    String::from(" --> src/lib.rs:6:20"),
+                    format!(
+                        " --> {}/src/lib.rs:6:20",
+                        crate_absoulte_path.as_path().to_str().unwrap()
+                    ),
                     String::from("  |"),
                     String::from("6 |     *y.offset(0) = external_fn(*x.offset(0)) * a;"),
                     String::from("  |                    ^^^^^^^^^^^ not found in this scope"),
@@ -94,6 +99,9 @@ fn should_provide_crate_source_files() {
         .build()
         .unwrap();
 
+    let project = Project::analyze("tests/fixtures/sample-crate").unwrap();
+    let proxy_crate = project.get_proxy_crate().unwrap();
+
     let mut sources = output.source_files().unwrap();
     sources.sort();
 
@@ -109,6 +117,7 @@ fn should_provide_crate_source_files() {
             current_dir()
                 .unwrap()
                 .join("tests/fixtures/sample-crate/src/mod2.rs"),
+            proxy_crate.get_path().join("src/lib.rs"),
         ]
     );
 }

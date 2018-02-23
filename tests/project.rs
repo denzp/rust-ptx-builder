@@ -1,13 +1,14 @@
 extern crate ptx_builder;
 
 use ptx_builder::error::*;
-use ptx_builder::project::Project;
+use ptx_builder::project::{Crate, Project};
 
 #[test]
-fn should_find_crate_name() {
+fn should_find_crate_names() {
     let project = Project::analyze("tests/fixtures/sample-crate").unwrap();
 
-    assert_eq!(project.get_name(), "sample_ptx_crate");
+    assert_eq!(project.get_name(), "sample-ptx_crate");
+    assert_eq!(project.get_rustc_name(), "sample_ptx_crate");
 }
 
 #[test]
@@ -39,16 +40,13 @@ fn should_check_validity_of_crate_path() {
 }
 
 #[test]
-fn should_provide_consistent_hash() {
+fn should_provide_proxy_crate() {
     let project = Project::analyze("tests/fixtures/sample-crate").unwrap();
+    let proxy = project.get_proxy_crate().unwrap();
 
-    assert_eq!(project.get_hash(), project.get_hash());
-}
-
-#[test]
-fn should_provide_output_path() {
-    let project = Project::analyze("tests/fixtures/sample-crate").unwrap();
-
-    assert!(project.get_output_path().starts_with("/tmp/ptx-builder"));
-    assert!(project.get_output_path().ends_with("sample_ptx_crate"));
+    assert!(
+        proxy
+            .get_output_path()
+            .starts_with("/tmp/ptx-builder/sample_ptx_crate")
+    );
 }
