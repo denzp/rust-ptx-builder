@@ -5,7 +5,6 @@ use std::path::{Path, PathBuf};
 use toml;
 
 use error::*;
-use executable::{Cargo, ExecutableRunner};
 use proxy::ProxyCrate;
 
 pub trait Crate {
@@ -52,17 +51,10 @@ impl Project {
             }
         };
 
-        let output = ExecutableRunner::new(Cargo)
-            .with_args(&["rustc", "-q", "--", "--print", "crate-name"])
-            .with_cwd(path.as_path())
-            .with_env("CARGO_TARGET_DIR", env::temp_dir())
-            .run()
-            .chain_err(|| "Unable to get crate name with cargo")?;
-
         Ok(Project {
             path,
             name: String::from(cargo_toml_name),
-            rustc_name: String::from(output.stdout.trim()),
+            rustc_name: String::from(cargo_toml_name.replace("-", "_")),
         })
     }
 
