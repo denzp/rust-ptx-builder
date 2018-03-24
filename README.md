@@ -32,7 +32,7 @@ First, you need to specify a build script in host crate's `Cargo.toml` and decla
 build = "build.rs"
 
 [build-dependencies]
-ptx-builder = "0.2"
+ptx-builder = "0.3"
 ```
 
 Then, typical `build.rs` might look like:
@@ -50,19 +50,28 @@ fn main() {
 }
 
 fn build() -> Result<()> {
-    let output = Builder::new("device/crate/path")?.build()?;
+    let status = Builder::new(".")?.build()?;
 
-    // Provide the PTX Assembly location via env variable
-    println!(
-        "cargo:rustc-env=KERNEL_PTX_PATH={}",
-        output.get_assembly_path().to_str().unwrap()
-    );
+    match status {
+        BuildStatus::Success(output) => {
+            // Provide the PTX Assembly location via env variable
+            println!(
+                "cargo:rustc-env=KERNEL_PTX_PATH={}",
+                output.get_assembly_path().to_str().unwrap()
+            );
 
-    // Observe changes in kernel sources
-    for path in output.source_files()? {
-        println!("cargo:rerun-if-changed={}", path.to_str().unwrap());
-    }
+            // Observe changes in kernel sources
+            for path in output.source_files()? {
+                println!("cargo:rerun-if-changed={}", path.to_str().unwrap());
+            }
+        }
+
+        BuildStatus::NotNeeded => {
+            println!("cargo:rustc-env=KERNEL_PTX_PATH=/dev/null");
+        }
+    };
 
     Ok(())
 }
+
 ```

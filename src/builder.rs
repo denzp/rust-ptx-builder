@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::io::{BufReader, Read};
+use std::env;
 
 use error::*;
 use project::{Crate, Project};
@@ -12,11 +13,19 @@ pub struct Builder {
     target: TargetInfo,
 
     colors: bool,
+
+    is_rls_build: bool,
+    is_recursive_build: bool,
 }
 
 pub struct Output {
     output_path: PathBuf,
     crate_name: String,
+}
+
+pub enum BuildStatus {
+    Success(Output),
+    NotNeeded,
 }
 
 impl Builder {
@@ -26,6 +35,14 @@ impl Builder {
             target: TargetInfo::new().chain_err(|| "Unable to get target details")?,
 
             colors: true,
+
+            is_rls_build: {
+                env::var("CARGO").is_ok() && env::var("CARGO").unwrap().ends_with("rls")
+            },
+            is_recursive_build: {
+                env::var("PTX_CRATE_BUILDING").is_ok()
+                    && env::var("PTX_CRATE_BUILDING").unwrap() == "1"
+            },
         })
     }
 
@@ -34,17 +51,22 @@ impl Builder {
         self
     }
 
-    pub fn build(&mut self) -> Result<Output> {
+    pub fn build(&mut self) -> Result<BuildStatus> {
+        if self.is_rls_build || self.is_recursive_build {
+            return Ok(BuildStatus::NotNeeded);
+        }
+
         let mut proxy = {
             self.project
                 .get_proxy_crate()
                 .chain_err(|| "Unable to create proxy crate")?
         };
-        let mut xargo = ExecutableRunner::new(Xargo);
 
         proxy
             .initialize()
             .chain_err(|| "Unable to initialize proxy crate")?;
+
+        let mut xargo = ExecutableRunner::new(Xargo);
 
         xargo
             .with_args(&[
@@ -61,6 +83,7 @@ impl Builder {
                 self.target.get_target_name(),
             ])
             .with_cwd(proxy.get_path())
+            .with_env("PTX_CRATE_BUILDING", "1")
             .with_env("CARGO_TARGET_DIR", proxy.get_output_path())
             .with_env("RUST_TARGET_PATH", self.target.get_path());
 
@@ -78,7 +101,10 @@ impl Builder {
             _ => error,
         })?;
 
-        Ok(Output::new(proxy.get_output_path(), proxy.get_name()))
+        Ok(BuildStatus::Success(Output::new(
+            proxy.get_output_path(),
+            proxy.get_name(),
+        )))
     }
 }
 

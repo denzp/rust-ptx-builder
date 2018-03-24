@@ -16,7 +16,7 @@ pub mod proxy;
 pub mod reporter;
 
 pub mod prelude {
-    pub use builder::Builder;
+    pub use builder::{BuildStatus, Builder};
     pub use reporter::BuildReporter;
     pub use error::Result;
 }
