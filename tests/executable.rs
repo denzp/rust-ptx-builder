@@ -2,8 +2,8 @@ extern crate ptx_builder;
 
 use std::process::Command;
 
-use ptx_builder::executable::{Cargo, Executable, ExecutableRunner};
 use ptx_builder::error::*;
+use ptx_builder::executable::{Cargo, Executable, ExecutableRunner};
 
 mod cargo {
     use super::*;
@@ -27,7 +27,7 @@ mod cargo {
     #[test]
     fn should_check_exit_code() {
         let output = ExecutableRunner::new(Cargo)
-            .with_args(&["rustc", "-q", "--unknow-flag"])
+            .with_args(&["rustc", "-q", "--unknown-flag"])
             .with_cwd("tests/fixtures/sample-crate")
             .run();
 
@@ -35,7 +35,8 @@ mod cargo {
             Err(Error(ErrorKind::CommandFailed(command, code, stderr), _)) => {
                 assert_eq!(command, String::from("cargo"));
                 assert_eq!(code, 1);
-                assert_eq!(stderr, String::from("error: Unknown flag: '--unknow-flag'\n\nUsage:\n    cargo rustc [options] [--] [<opts>...]\n"));
+
+                assert!(stderr.contains("argument '--unknown-flag'"));
             }
 
             Ok(_) => unreachable!("it should fail"),
