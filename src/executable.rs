@@ -1,5 +1,7 @@
-use std::path::Path;
+use regex::Regex;
+use semver::{Version, VersionReq};
 use std::ffi::OsStr;
+use std::path::Path;
 use std::process::Command;
 
 use error::*;
@@ -8,7 +10,43 @@ pub trait Executable {
     fn get_name(&self) -> String;
     fn get_verification_hint(&self) -> String;
 
-    fn populate_verification_args(&self, &mut Command);
+    fn get_version_hint(&self) -> String;
+    fn get_required_version(&self) -> Option<VersionReq>;
+
+    fn get_current_version(&self) -> Result<Version> {
+        let mut command = Command::new(self.get_name());
+
+        command.args(&["-V"]);
+
+        let raw_output = {
+            command.output().chain_err(|| {
+                ErrorKind::CommandNotFound(self.get_name(), self.get_verification_hint())
+            })?
+        };
+
+        let output = Output {
+            stdout: String::from_utf8(raw_output.stdout)?,
+            stderr: String::from_utf8(raw_output.stderr)?,
+        };
+
+        if !raw_output.status.success() {
+            bail!(ErrorKind::CommandFailed(
+                self.get_name(),
+                raw_output.status.code().unwrap_or(-1),
+                output.stderr,
+            ));
+        }
+
+        let version_regex = Regex::new(&format!(r"{}\s(\S+)", self.get_name()))?;
+
+        match version_regex.captures(&(output.stdout + &output.stderr)) {
+            Some(captures) => Ok(Version::parse(&captures[1])?),
+
+            None => bail!(ErrorKind::InternalError(
+                "Unable to find executable version".into()
+            )),
+        }
+    }
 }
 
 pub struct Cargo;
@@ -30,17 +68,6 @@ impl<Ex: Executable> ExecutableRunner<Ex> {
         ExecutableRunner {
             command: Command::new(executable.get_name()),
             executable,
-        }
-    }
-
-    pub fn is_runnable(&self) -> bool {
-        let mut command = Command::new(self.executable.get_name());
-
-        self.executable.populate_verification_args(&mut command);
-
-        match command.output() {
-            Ok(_) => true,
-            Err(_) => false,
         }
     }
 
@@ -71,12 +98,7 @@ impl<Ex: Executable> ExecutableRunner<Ex> {
     }
 
     pub fn run(&mut self) -> Result<Output> {
-        if !self.is_runnable() {
-            bail!(ErrorKind::CommandNotFound(
-                self.executable.get_name(),
-                self.executable.get_verification_hint()
-            ));
-        }
+        self.check_version()?;
 
         let raw_output = {
             self.command.output().chain_err(|| {
@@ -102,6 +124,24 @@ impl<Ex: Executable> ExecutableRunner<Ex> {
             )),
         }
     }
+
+    fn check_version(&self) -> Result<()> {
+        let current = self.executable.get_current_version()?;
+        let required = self.executable.get_required_version();
+
+        match required {
+            Some(ref required) if !required.matches(&current) => {
+                bail!(ErrorKind::CommandVersionNotFulfilled(
+                    self.executable.get_name(),
+                    current,
+                    required.clone(),
+                    self.executable.get_version_hint()
+                ));
+            }
+
+            _ => Ok(()),
+        }
+    }
 }
 
 impl Executable for Cargo {
@@ -113,8 +153,12 @@ impl Executable for Cargo {
         String::from("Please make sure you have it installed and in PATH")
     }
 
-    fn populate_verification_args(&self, command: &mut Command) {
-        command.args(&["-V"]);
+    fn get_version_hint(&self) -> String {
+        String::from("Please update Rust and Cargo to latest nightly versions")
+    }
+
+    fn get_required_version(&self) -> Option<VersionReq> {
+        Some(VersionReq::parse(">= 1.27.0-nightly").unwrap())
     }
 }
 
@@ -127,8 +171,12 @@ impl Executable for Linker {
         String::from("You can install it with: 'cargo install ptx-linker'")
     }
 
-    fn populate_verification_args(&self, command: &mut Command) {
-        command.args(&["-V"]);
+    fn get_version_hint(&self) -> String {
+        String::from("You can update it with: 'cargo install ptx-linker'")
+    }
+
+    fn get_required_version(&self) -> Option<VersionReq> {
+        Some(VersionReq::parse(">= 0.5.1").unwrap())
     }
 }
 
@@ -141,7 +189,11 @@ impl Executable for Xargo {
         String::from("You can install it with: 'cargo install xargo'")
     }
 
-    fn populate_verification_args(&self, command: &mut Command) {
-        command.args(&["-V"]);
+    fn get_version_hint(&self) -> String {
+        String::from("You can update it with: 'cargo install xargo'")
+    }
+
+    fn get_required_version(&self) -> Option<VersionReq> {
+        Some(VersionReq::parse(">= 0.3.12").unwrap())
     }
 }

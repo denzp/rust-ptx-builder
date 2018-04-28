@@ -1,5 +1,6 @@
-use std::path::PathBuf;
 use colored::*;
+use semver::{Version, VersionReq};
+use std::path::PathBuf;
 
 error_chain! {
     errors {
@@ -9,6 +10,16 @@ error_chain! {
 
         CommandFailed(command: String, code: i32, stderr: String) {
             display("Command failed: '{}' with code '{}' and output:\n{}", command.bold(), code, stderr.trim()),
+        }
+
+        CommandVersionNotFulfilled(command: String, current: Version, required: VersionReq, hint: String) {
+            display(
+                "Command version is not fulfilled: '{}' is currently '{}' but '{}' is required. {}.",
+                command.bold(),
+                current.to_string().underline(),
+                required.to_string().underline(),
+                hint.underline(),
+            )
         }
 
         InvalidCratePath(path: PathBuf) {
@@ -28,5 +39,7 @@ error_chain! {
         Utf8Error(::std::string::FromUtf8Error);
         Io(::std::io::Error);
         TomlError(::toml::de::Error);
+        RegexError(::regex::Error);
+        SemVerError(::semver::SemVerError);
     }
 }

@@ -1,17 +1,13 @@
 extern crate ptx_builder;
+extern crate semver;
 
-use std::process::Command;
+use semver::VersionReq;
 
 use ptx_builder::error::*;
 use ptx_builder::executable::{Cargo, Executable, ExecutableRunner};
 
 mod cargo {
     use super::*;
-
-    #[test]
-    fn should_be_runnable() {
-        assert_eq!(ExecutableRunner::new(Cargo).is_runnable(), true);
-    }
 
     #[test]
     fn should_provide_output() {
@@ -59,17 +55,13 @@ mod non_existing_command {
             String::from("Some useful hint")
         }
 
-        fn populate_verification_args(&self, command: &mut Command) {
-            command.args(&["-V"]);
+        fn get_version_hint(&self) -> String {
+            String::from("Some useful hint about version")
         }
-    }
 
-    #[test]
-    fn should_not_be_runnable() {
-        assert_eq!(
-            ExecutableRunner::new(NonExistingCommand).is_runnable(),
-            false
-        );
+        fn get_required_version(&self) -> Option<VersionReq> {
+            None
+        }
     }
 
     #[test]
@@ -86,5 +78,44 @@ mod non_existing_command {
             Err(_) => unreachable!("it should fail with proper error"),
         }
     }
+}
 
+mod unrealistic_version_requirement {
+    use super::*;
+
+    struct UnrealisticCommand;
+
+    impl Executable for UnrealisticCommand {
+        fn get_name(&self) -> String {
+            String::from("cargo")
+        }
+
+        fn get_verification_hint(&self) -> String {
+            String::from("Some useful hint")
+        }
+
+        fn get_version_hint(&self) -> String {
+            String::from("Some useful hint about version")
+        }
+
+        fn get_required_version(&self) -> Option<VersionReq> {
+            Some(VersionReq::parse("> 100.0.0").unwrap())
+        }
+    }
+
+    #[test]
+    fn should_not_provide_output() {
+        let output = ExecutableRunner::new(UnrealisticCommand).run();
+
+        match output {
+            Err(Error(ErrorKind::CommandVersionNotFulfilled(command, _, required, hint), _)) => {
+                assert_eq!(command, String::from("cargo"));
+                assert_eq!(required, VersionReq::parse("> 100.0.0").unwrap());
+                assert_eq!(hint, String::from("Some useful hint about version"));
+            }
+
+            Ok(_) => unreachable!("it should fail"),
+            Err(_) => unreachable!("it should fail with proper error"),
+        }
+    }
 }
