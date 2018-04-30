@@ -1,21 +1,18 @@
-use std::path::{Path, PathBuf};
+use std::env;
 use std::fs::File;
 use std::io::{BufReader, Read};
-use std::env;
+use std::path::{Path, PathBuf};
 
 use error::*;
+use executable::{ExecutableRunner, Xargo};
 use project::{Crate, Project};
 use target::TargetInfo;
-use executable::{ExecutableRunner, Xargo};
 
 pub struct Builder {
     project: Project,
     target: TargetInfo,
 
     colors: bool,
-
-    is_rls_build: bool,
-    is_recursive_build: bool,
 }
 
 pub struct Output {
@@ -35,15 +32,17 @@ impl Builder {
             target: TargetInfo::new().chain_err(|| "Unable to get target details")?,
 
             colors: true,
-
-            is_rls_build: {
-                env::var("CARGO").is_ok() && env::var("CARGO").unwrap().ends_with("rls")
-            },
-            is_recursive_build: {
-                env::var("PTX_CRATE_BUILDING").is_ok()
-                    && env::var("PTX_CRATE_BUILDING").unwrap() == "1"
-            },
         })
+    }
+
+    pub fn is_build_needed() -> bool {
+        let cargo_env = env::var("CARGO");
+        let recursive_env = env::var("PTX_CRATE_BUILDING");
+
+        let is_rls_build = cargo_env.is_ok() && cargo_env.unwrap().ends_with("rls");
+        let is_recursive_build = recursive_env.is_ok() && recursive_env.unwrap() == "1";
+
+        !is_rls_build && !is_recursive_build
     }
 
     pub fn disable_colors(&mut self) -> &mut Self {
@@ -52,7 +51,7 @@ impl Builder {
     }
 
     pub fn build(&mut self) -> Result<BuildStatus> {
-        if self.is_rls_build || self.is_recursive_build {
+        if !Self::is_build_needed() {
             return Ok(BuildStatus::NotNeeded);
         }
 

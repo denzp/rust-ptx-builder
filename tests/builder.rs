@@ -2,15 +2,15 @@
 extern crate lazy_static;
 extern crate ptx_builder;
 
-use std::io::prelude::*;
-use std::fs::{remove_dir_all, File};
-use std::env::current_dir;
 use std::env;
+use std::env::current_dir;
+use std::fs::{remove_dir_all, File};
+use std::io::prelude::*;
 use std::sync::Mutex;
 
+use ptx_builder::builder::{BuildStatus, Builder};
 use ptx_builder::error::*;
 use ptx_builder::project::{Crate, Project};
-use ptx_builder::builder::{BuildStatus, Builder};
 
 lazy_static! {
     static ref ENV_MUTEX: Mutex<()> = Mutex::new(());
@@ -102,7 +102,7 @@ fn should_report_about_build_failure() {
                     String::from("error: aborting due to previous error"),
                     String::from(""),
                     String::from(
-                        "For more information about this error, try `rustc --explain E0425`."
+                        "For more information about this error, try `rustc --explain E0425`.",
                     ),
                     String::from("error: Could not compile `faulty-ptx_crate`."),
                     String::from(""),
@@ -154,36 +154,32 @@ fn should_provide_crate_source_files() {
 
 #[test]
 fn should_not_get_built_from_rls() {
-    let mut builder = {
-        let _lock = ENV_MUTEX.lock().unwrap();
+    let _lock = ENV_MUTEX.lock().unwrap();
+    env::set_var("CARGO", "some/path/to/rls");
 
-        env::set_var("CARGO", "some/path/to/rls");
-        let result = Builder::new("tests/fixtures/sample-crate").unwrap();
-        env::set_var("CARGO", "");
-
-        result
-    };
+    assert_eq!(Builder::is_build_needed(), false);
+    let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
     match builder.build().unwrap() {
         BuildStatus::NotNeeded => {}
         BuildStatus::Success(_) => unreachable!(),
     }
+
+    env::set_var("CARGO", "");
 }
 
 #[test]
 fn should_not_get_built_recursively() {
-    let mut builder = {
-        let _lock = ENV_MUTEX.lock().unwrap();
+    let _lock = ENV_MUTEX.lock().unwrap();
+    env::set_var("PTX_CRATE_BUILDING", "1");
 
-        env::set_var("PTX_CRATE_BUILDING", "1");
-        let result = Builder::new("tests/fixtures/sample-crate").unwrap();
-        env::set_var("PTX_CRATE_BUILDING", "");
-
-        result
-    };
+    assert_eq!(Builder::is_build_needed(), false);
+    let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
     match builder.build().unwrap() {
         BuildStatus::NotNeeded => {}
         BuildStatus::Success(_) => unreachable!(),
     }
+
+    env::set_var("PTX_CRATE_BUILDING", "");
 }
