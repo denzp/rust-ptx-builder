@@ -10,10 +10,12 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
-      - llvm-toolchain-trusty-5.0
+      - llvm-toolchain-trusty-6.0
     packages:
-      - g++-6
-      - llvm-5.0-dev
+      - llvm-6.0-dev
+
+env:
+  - LLVM_SYS_60_PREFIX="/usr/lib/llvm-6.0"
 
 before_script:
   - export PATH=$HOME/.cargo/bin:$PATH

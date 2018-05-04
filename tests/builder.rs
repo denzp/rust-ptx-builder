@@ -19,10 +19,8 @@ lazy_static! {
 #[test]
 fn should_provide_output_path() {
     let project = Project::analyze("tests/fixtures/sample-crate").unwrap();
-    let mut builder = {
-        let _lock = ENV_MUTEX.lock().unwrap();
-        Builder::new("tests/fixtures/sample-crate").unwrap()
-    };
+    let _lock = ENV_MUTEX.lock().unwrap();
+    let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
     match builder.build().unwrap() {
         BuildStatus::Success(output) => {
@@ -45,10 +43,34 @@ fn should_write_assembly() {
     let project = Project::analyze("tests/fixtures/sample-crate").unwrap();
     remove_dir_all(project.get_proxy_crate().unwrap().get_output_path()).unwrap_or_default();
 
-    let mut builder = {
-        let _lock = ENV_MUTEX.lock().unwrap();
-        Builder::new("tests/fixtures/sample-crate").unwrap()
-    };
+    let _lock = ENV_MUTEX.lock().unwrap();
+    let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
+
+    match builder.build().unwrap() {
+        BuildStatus::Success(output) => {
+            let mut assembly_contents = String::new();
+
+            File::open(output.get_assembly_path())
+                .unwrap()
+                .read_to_string(&mut assembly_contents)
+                .unwrap();
+
+            assert!(assembly_contents.contains(".visible .entry the_kernel("));
+        }
+
+        BuildStatus::NotNeeded => unreachable!(),
+    }
+}
+
+#[test]
+fn should_write_assembly_in_debug_mode() {
+    let project = Project::analyze("tests/fixtures/sample-crate").unwrap();
+    remove_dir_all(project.get_proxy_crate().unwrap().get_output_path()).unwrap_or_default();
+
+    let _lock = ENV_MUTEX.lock().unwrap();
+    let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
+
+    env::set_var("PROFILE", "debug");
 
     match builder.build().unwrap() {
         BuildStatus::Success(output) => {
@@ -68,10 +90,8 @@ fn should_write_assembly() {
 
 #[test]
 fn should_report_about_build_failure() {
-    let mut builder = {
-        let _lock = ENV_MUTEX.lock().unwrap();
-        Builder::new("tests/fixtures/faulty-crate").unwrap()
-    };
+    let _lock = ENV_MUTEX.lock().unwrap();
+    let mut builder = Builder::new("tests/fixtures/faulty-crate").unwrap();
 
     let output = builder.disable_colors().build();
     let crate_absoulte_path = current_dir().unwrap().join("tests/fixtures/faulty-crate");
@@ -118,10 +138,8 @@ fn should_report_about_build_failure() {
 
 #[test]
 fn should_provide_crate_source_files() {
-    let mut builder = {
-        let _lock = ENV_MUTEX.lock().unwrap();
-        Builder::new("tests/fixtures/sample-crate").unwrap()
-    };
+    let _lock = ENV_MUTEX.lock().unwrap();
+    let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
     match builder.build().unwrap() {
         BuildStatus::Success(output) => {
