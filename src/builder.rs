@@ -18,6 +18,7 @@ pub struct Builder {
 pub struct Output {
     output_path: PathBuf,
     crate_name: String,
+    profile: String,
 }
 
 pub enum BuildStatus {
@@ -71,8 +72,8 @@ impl Builder {
 
         args.push("build");
 
-        let profile = env::var("PROFILE");
-        if !profile.is_ok() || profile.unwrap() == "release" {
+        let profile = env::var("PROFILE").unwrap_or("release".to_string());
+        if profile == "release" {
             args.push("--release");
         }
 
@@ -109,22 +110,25 @@ impl Builder {
         Ok(BuildStatus::Success(Output::new(
             proxy.get_output_path(),
             proxy.get_name(),
+            &profile,
         )))
     }
 }
 
 impl Output {
-    fn new(output_path: PathBuf, crate_name: &str) -> Self {
+    fn new(output_path: PathBuf, crate_name: &str, profile: &str) -> Self {
         Output {
             output_path,
             crate_name: String::from(crate_name),
+            profile: String::from(profile),
         }
     }
 
     pub fn get_assembly_path(&self) -> PathBuf {
         self.output_path.join(format!(
-            "nvptx64-nvidia-cuda/release/{}.ptx",
-            self.crate_name
+            "nvptx64-nvidia-cuda/{}/{}.ptx",
+            self.profile,
+            self.crate_name,
         ))
     }
 
@@ -167,8 +171,11 @@ impl Output {
     }
 
     fn get_deps_file_contents(&self) -> Result<String> {
-        let crate_deps_path = self.output_path
-            .join(format!("nvptx64-nvidia-cuda/release/{}.d", self.crate_name));
+        let crate_deps_path = self.output_path.join(format!(
+            "nvptx64-nvidia-cuda/{}/{}.d",
+            self.profile,
+            self.crate_name,
+        ));
 
         let mut crate_deps_reader = BufReader::new(File::open(crate_deps_path)?);
         let mut crate_deps_contents = String::new();
