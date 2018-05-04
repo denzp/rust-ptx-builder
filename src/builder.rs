@@ -67,20 +67,26 @@ impl Builder {
 
         let mut xargo = ExecutableRunner::new(Xargo);
 
+        let mut args = Vec::new();
+
+        args.push("build");
+
+        let profile = env::var("PROFILE");
+        if !profile.is_ok() || profile.unwrap() == "release" {
+            args.push("--release");
+        }
+
+        args.push("--color");
+        args.push(match self.colors {
+            true => "always",
+            false => "never",
+        });
+
+        args.push("--target");
+        args.push(self.target.get_target_name());
+
         xargo
-            .with_args(&[
-                "build",
-                "--release",
-                "--color",
-                {
-                    match self.colors {
-                        true => "always",
-                        false => "never",
-                    }
-                },
-                "--target",
-                self.target.get_target_name(),
-            ])
+            .with_args(&args)
             .with_cwd(proxy.get_path())
             .with_env("PTX_CRATE_BUILDING", "1")
             .with_env("CARGO_TARGET_DIR", proxy.get_output_path())
