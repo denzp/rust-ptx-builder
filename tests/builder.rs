@@ -8,7 +8,7 @@ use std::fs::{remove_dir_all, File};
 use std::io::prelude::*;
 use std::sync::Mutex;
 
-use ptx_builder::builder::{BuildStatus, Builder};
+use ptx_builder::builder::{BuildStatus, Builder, Profile};
 use ptx_builder::error::*;
 use ptx_builder::project::{Crate, Project};
 
@@ -55,6 +55,13 @@ fn should_write_assembly() {
                 .read_to_string(&mut assembly_contents)
                 .unwrap();
 
+            assert!(
+                output
+                    .get_assembly_path()
+                    .to_string_lossy()
+                    .contains("release")
+            );
+
             assert!(assembly_contents.contains(".visible .entry the_kernel("));
         }
 
@@ -70,7 +77,8 @@ fn should_write_assembly_in_debug_mode() {
     let _lock = ENV_MUTEX.lock().unwrap();
     let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
-    env::set_var("PROFILE", "debug");
+    builder.set_profile(Profile::Debug);
+    // env::set_var("PROFILE", "debug");
 
     match builder.build().unwrap() {
         BuildStatus::Success(output) => {
@@ -80,6 +88,13 @@ fn should_write_assembly_in_debug_mode() {
                 .unwrap()
                 .read_to_string(&mut assembly_contents)
                 .unwrap();
+
+            assert!(
+                output
+                    .get_assembly_path()
+                    .to_string_lossy()
+                    .contains("debug")
+            );
 
             assert!(assembly_contents.contains(".visible .entry the_kernel("));
         }

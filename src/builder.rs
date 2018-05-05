@@ -1,4 +1,5 @@
 use std::env;
+use std::fmt;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -12,18 +13,25 @@ pub struct Builder {
     project: Project,
     target: TargetInfo,
 
+    profile: Profile,
     colors: bool,
 }
 
 pub struct Output {
     output_path: PathBuf,
     crate_name: String,
-    profile: String,
+    profile: Profile,
 }
 
 pub enum BuildStatus {
     Success(Output),
     NotNeeded,
+}
+
+#[derive(PartialEq, Clone)]
+pub enum Profile {
+    Debug,
+    Release,
 }
 
 impl Builder {
@@ -32,6 +40,7 @@ impl Builder {
             project: Project::analyze(path).chain_err(|| "Unable to analyze project")?,
             target: TargetInfo::new().chain_err(|| "Unable to get target details")?,
 
+            profile: Profile::Release, // TODO: choose automatically, e.g.: `env::var("PROFILE").unwrap_or("release".to_string())`
             colors: true,
         })
     }
@@ -51,6 +60,11 @@ impl Builder {
         self
     }
 
+    pub fn set_profile(&mut self, profile: Profile) -> &mut Self {
+        self.profile = profile;
+        self
+    }
+
     pub fn build(&mut self) -> Result<BuildStatus> {
         if !Self::is_build_needed() {
             return Ok(BuildStatus::NotNeeded);
@@ -67,13 +81,11 @@ impl Builder {
             .chain_err(|| "Unable to initialize proxy crate")?;
 
         let mut xargo = ExecutableRunner::new(Xargo);
-
         let mut args = Vec::new();
 
         args.push("build");
 
-        let profile = env::var("PROFILE").unwrap_or("release".to_string());
-        if profile == "release" {
+        if self.profile == Profile::Release {
             args.push("--release");
         }
 
@@ -110,25 +122,24 @@ impl Builder {
         Ok(BuildStatus::Success(Output::new(
             proxy.get_output_path(),
             proxy.get_name(),
-            &profile,
+            self.profile.clone(),
         )))
     }
 }
 
 impl Output {
-    fn new(output_path: PathBuf, crate_name: &str, profile: &str) -> Self {
+    fn new(output_path: PathBuf, crate_name: &str, profile: Profile) -> Self {
         Output {
             output_path,
             crate_name: String::from(crate_name),
-            profile: String::from(profile),
+            profile,
         }
     }
 
     pub fn get_assembly_path(&self) -> PathBuf {
         self.output_path.join(format!(
             "nvptx64-nvidia-cuda/{}/{}.ptx",
-            self.profile,
-            self.crate_name,
+            self.profile, self.crate_name,
         ))
     }
 
@@ -173,8 +184,7 @@ impl Output {
     fn get_deps_file_contents(&self) -> Result<String> {
         let crate_deps_path = self.output_path.join(format!(
             "nvptx64-nvidia-cuda/{}/{}.d",
-            self.profile,
-            self.crate_name,
+            self.profile, self.crate_name,
         ));
 
         let mut crate_deps_reader = BufReader::new(File::open(crate_deps_path)?);
@@ -183,5 +193,14 @@ impl Output {
         crate_deps_reader.read_to_string(&mut crate_deps_contents)?;
 
         Ok(crate_deps_contents)
+    }
+}
+
+impl fmt::Display for Profile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Profile::Debug => write!(f, "debug"),
+            Profile::Release => write!(f, "release"),
+        }
     }
 }
