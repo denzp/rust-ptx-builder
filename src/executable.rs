@@ -172,11 +172,11 @@ impl Executable for Linker {
     }
 
     fn get_version_hint(&self) -> String {
-        String::from("You can update it with: 'cargo install ptx-linker'")
+        String::from("You can update it with: 'cargo install -f ptx-linker'")
     }
 
     fn get_required_version(&self) -> Option<VersionReq> {
-        Some(VersionReq::parse(">= 0.6.0").unwrap())
+        Some(VersionReq::parse(">= 0.6.1").unwrap())
     }
 }
 
@@ -190,7 +190,7 @@ impl Executable for Xargo {
     }
 
     fn get_version_hint(&self) -> String {
-        String::from("You can update it with: 'cargo install xargo'")
+        String::from("You can update it with: 'cargo install -f xargo'")
     }
 
     fn get_required_version(&self) -> Option<VersionReq> {
