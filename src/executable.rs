@@ -13,39 +13,11 @@ pub trait Executable {
     fn get_version_hint(&self) -> String;
     fn get_required_version(&self) -> Option<VersionReq>;
 
-    fn get_current_version(&self) -> Result<Version> {
-        let mut command = Command::new(self.get_name());
-
-        command.args(&["-V"]);
-
-        let raw_output = {
-            command.output().chain_err(|| {
-                ErrorKind::CommandNotFound(self.get_name(), self.get_verification_hint())
-            })?
-        };
-
-        let output = Output {
-            stdout: String::from_utf8(raw_output.stdout)?,
-            stderr: String::from_utf8(raw_output.stderr)?,
-        };
-
-        if !raw_output.status.success() {
-            bail!(ErrorKind::CommandFailed(
-                self.get_name(),
-                raw_output.status.code().unwrap_or(-1),
-                output.stderr,
-            ));
-        }
-
-        let version_regex = Regex::new(&format!(r"{}\s(\S+)", self.get_name()))?;
-
-        match version_regex.captures(&(output.stdout + &output.stderr)) {
-            Some(captures) => Ok(Version::parse(&captures[1])?),
-
-            None => bail!(ErrorKind::InternalError(
-                "Unable to find executable version".into()
-            )),
-        }
+    fn get_current_version(&self) -> Result<Version>
+    where
+        Self: Sized,
+    {
+        parse_executable_version(self)
     }
 }
 
@@ -160,6 +132,16 @@ impl Executable for Cargo {
     fn get_required_version(&self) -> Option<VersionReq> {
         Some(VersionReq::parse(">= 1.27.0-nightly").unwrap())
     }
+
+    fn get_current_version(&self) -> Result<Version> {
+        // Omit Rust channel name because it's not really semver-correct
+        // https://github.com/steveklabnik/semver/issues/105
+
+        parse_executable_version(self).map(|mut version| {
+            version.pre = vec![];
+            version
+        })
+    }
 }
 
 impl Executable for Linker {
@@ -195,5 +177,40 @@ impl Executable for Xargo {
 
     fn get_required_version(&self) -> Option<VersionReq> {
         Some(VersionReq::parse(">= 0.3.12").unwrap())
+    }
+}
+
+fn parse_executable_version(executable: &Executable) -> Result<Version> {
+    let mut command = Command::new(executable.get_name());
+
+    command.args(&["-V"]);
+
+    let raw_output = {
+        command.output().chain_err(|| {
+            ErrorKind::CommandNotFound(executable.get_name(), executable.get_verification_hint())
+        })?
+    };
+
+    let output = Output {
+        stdout: String::from_utf8(raw_output.stdout)?,
+        stderr: String::from_utf8(raw_output.stderr)?,
+    };
+
+    if !raw_output.status.success() {
+        bail!(ErrorKind::CommandFailed(
+            executable.get_name(),
+            raw_output.status.code().unwrap_or(-1),
+            output.stderr,
+        ));
+    }
+
+    let version_regex = Regex::new(&format!(r"{}\s(\S+)", executable.get_name()))?;
+
+    match version_regex.captures(&(output.stdout + &output.stderr)) {
+        Some(captures) => Ok(Version::parse(&captures[1])?),
+
+        None => bail!(ErrorKind::InternalError(
+            "Unable to find executable version".into()
+        )),
     }
 }

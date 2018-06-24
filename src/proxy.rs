@@ -1,12 +1,12 @@
-use std::env;
-use std::path::{Path, PathBuf};
-use std::fs::{create_dir_all, metadata, File};
-use std::io::{BufWriter, Write};
 use std::collections::hash_map::DefaultHasher;
+use std::env;
+use std::fs::{create_dir_all, metadata, File};
 use std::hash::{Hash, Hasher};
+use std::io::{BufWriter, Write};
+use std::path::{Path, PathBuf};
 
-use project::{Crate, Project};
 use error::*;
+use project::{Crate, Project};
 
 pub struct ProxyCrate<'a> {
     project: &'a Project,
@@ -25,7 +25,7 @@ crate_type = ["dylib"]
 "#;
 
 const DEFAULT_LIB_PREFIX: &str = r#"
-#![feature(lang_items)]
+#![feature(panic_implementation)]
 #![no_std]
 
 "#;
@@ -33,8 +33,8 @@ const DEFAULT_LIB_PREFIX: &str = r#"
 const DEFAULT_LIB_SUFFIX: &str = r#"
 
 // Needed because we compile `dylib`...
-#[lang = "panic_fmt"]
-fn panic_fmt() -> ! {
+#[panic_implementation]
+fn panic(_info: &::core::panic::PanicInfo) -> ! {
     loop {}
 }
 "#;
