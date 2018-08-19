@@ -3,19 +3,6 @@ cache: cargo
 
 rust:
   - nightly
-# - stable
-
-# Dependencies of ptx-linker
-addons:
-  apt:
-    sources:
-      - ubuntu-toolchain-r-test
-      - llvm-toolchain-trusty-6.0
-    packages:
-      - llvm-6.0-dev
-
-env:
-  - LLVM_SYS_60_PREFIX="/usr/lib/llvm-6.0"
 
 before_script:
   - export PATH=$HOME/.cargo/bin:$PATH

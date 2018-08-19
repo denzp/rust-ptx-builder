@@ -158,7 +158,7 @@ impl Executable for Linker {
     }
 
     fn get_required_version(&self) -> Option<VersionReq> {
-        Some(VersionReq::parse(">= 0.6.1").unwrap())
+        Some(VersionReq::parse(">= 0.7.0").unwrap())
     }
 }
 
