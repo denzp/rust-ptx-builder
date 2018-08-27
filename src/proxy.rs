@@ -41,7 +41,7 @@ fn panic(_info: &::core::panic::PanicInfo) -> ! {
 
 impl<'a> ProxyCrate<'a> {
     pub fn new(project: &'a Project) -> Result<Self> {
-        let mut path = env::temp_dir().join("ptx-builder");
+        let mut path = env::temp_dir().join("ptx-builder-0.4");
 
         path.push(&project.get_rustc_name());
         path.push(format!("{:x}", Self::get_project_hash(project)));

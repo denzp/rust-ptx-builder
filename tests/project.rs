@@ -47,6 +47,8 @@ fn should_provide_proxy_crate() {
     assert!(
         proxy
             .get_output_path()
-            .starts_with("/tmp/ptx-builder/sample_ptx_crate")
+            .to_str()
+            .unwrap()
+            .contains("ptx-builder-0.4/sample_ptx_crate")
     );
 }
