@@ -25,7 +25,7 @@ crate_type = ["dylib"]
 "#;
 
 const DEFAULT_LIB_PREFIX: &str = r#"
-#![feature(panic_implementation)]
+#![feature(panic_handler)]
 #![no_std]
 
 "#;
@@ -33,7 +33,7 @@ const DEFAULT_LIB_PREFIX: &str = r#"
 const DEFAULT_LIB_SUFFIX: &str = r#"
 
 // Needed because we compile `dylib`...
-#[panic_implementation]
+#[panic_handler]
 fn panic(_info: &::core::panic::PanicInfo) -> ! {
     loop {}
 }
