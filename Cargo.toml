@@ -23,6 +23,7 @@ regex = "0.2"
 
 [dev-dependencies]
 lazy_static = "1.0"
+antidote = "1.0"
 
 [badges]
 travis-ci = { repository = "denzp/rust-ptx-builder", branch = "master" }

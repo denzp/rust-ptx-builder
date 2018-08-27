@@ -17,7 +17,6 @@ install:
 build: off
 
 test_script:
-  - cargo check
   - cargo test
 
 branches:

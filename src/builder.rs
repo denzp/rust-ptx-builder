@@ -137,55 +137,49 @@ impl Output {
     }
 
     pub fn get_assembly_path(&self) -> PathBuf {
-        self.output_path.join(format!(
-            "nvptx64-nvidia-cuda/{}/{}.ptx",
-            self.profile, self.crate_name,
-        ))
+        self.output_path
+            .join("nvptx64-nvidia-cuda")
+            .join(self.profile.to_string())
+            .join(format!("{}.ptx", self.crate_name))
     }
 
     pub fn source_files(&self) -> Result<Vec<PathBuf>> {
-        let deps_contents = {
+        let mut deps_contents = {
             self.get_deps_file_contents()
                 .chain_err(|| "Unable to get crate deps")?
         };
 
-        let mut deps_parts = deps_contents.split(":");
+        let assembly_path = self.get_assembly_path();
 
-        match deps_parts.nth(0) {
-            Some(path) => {
-                if path != self.get_assembly_path().to_str().unwrap() {
-                    bail!(ErrorKind::InternalError(String::from(
-                        "Paths misalignment in deps file"
-                    )));
-                }
-            }
-
-            None => {
-                bail!(ErrorKind::InternalError(String::from("Empty deps file")));
-            }
+        if deps_contents.is_empty() {
+            bail!(ErrorKind::InternalError(String::from("Empty deps file")));
         }
 
-        match deps_parts.nth(0) {
-            Some(pathes) => {
-                let sources = pathes
-                    .trim()
-                    .split(" ")
-                    .map(|item| PathBuf::from(item.trim()));
-
-                Ok(sources.collect())
-            }
-
-            None => {
-                bail!(ErrorKind::InternalError(String::from("Empty deps file")));
-            }
+        if !deps_contents.starts_with(assembly_path.to_str().unwrap()) {
+            bail!(ErrorKind::InternalError(String::from(
+                "Paths misalignment in deps file"
+            )));
         }
+
+        deps_contents = deps_contents
+            .chars()
+            .skip(assembly_path.to_str().unwrap().len())
+            .skip_while(|c| *c == ':')
+            .collect::<String>();
+
+        Ok(deps_contents
+            .trim()
+            .split(' ')
+            .map(|item| PathBuf::from(item.trim()))
+            .collect())
     }
 
     fn get_deps_file_contents(&self) -> Result<String> {
-        let crate_deps_path = self.output_path.join(format!(
-            "nvptx64-nvidia-cuda/{}/{}.d",
-            self.profile, self.crate_name,
-        ));
+        let crate_deps_path = self
+            .output_path
+            .join("nvptx64-nvidia-cuda")
+            .join(self.profile.to_string())
+            .join(format!("{}.d", self.crate_name));
 
         let mut crate_deps_reader = BufReader::new(File::open(crate_deps_path)?);
         let mut crate_deps_contents = String::new();

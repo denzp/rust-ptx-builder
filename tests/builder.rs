@@ -1,12 +1,13 @@
 #[macro_use]
 extern crate lazy_static;
+extern crate antidote;
 extern crate ptx_builder;
 
+use antidote::Mutex;
 use std::env;
 use std::env::current_dir;
 use std::fs::{remove_dir_all, File};
 use std::io::prelude::*;
-use std::sync::Mutex;
 
 use ptx_builder::builder::{BuildStatus, Builder, Profile};
 use ptx_builder::error::*;
@@ -19,7 +20,7 @@ lazy_static! {
 #[test]
 fn should_provide_output_path() {
     let project = Project::analyze("tests/fixtures/sample-crate").unwrap();
-    let _lock = ENV_MUTEX.lock().unwrap();
+    let _lock = ENV_MUTEX.lock();
     let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
     match builder.build().unwrap() {
@@ -30,7 +31,9 @@ fn should_provide_output_path() {
                     .get_proxy_crate()
                     .unwrap()
                     .get_output_path()
-                    .join("nvptx64-nvidia-cuda/release/proxy.ptx")
+                    .join("nvptx64-nvidia-cuda")
+                    .join("release")
+                    .join("proxy.ptx")
             );
         }
 
@@ -43,7 +46,7 @@ fn should_write_assembly() {
     let project = Project::analyze("tests/fixtures/sample-crate").unwrap();
     remove_dir_all(project.get_proxy_crate().unwrap().get_output_path()).unwrap_or_default();
 
-    let _lock = ENV_MUTEX.lock().unwrap();
+    let _lock = ENV_MUTEX.lock();
     let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
     match builder.build().unwrap() {
@@ -74,7 +77,7 @@ fn should_write_assembly_in_debug_mode() {
     let project = Project::analyze("tests/fixtures/sample-crate").unwrap();
     remove_dir_all(project.get_proxy_crate().unwrap().get_output_path()).unwrap_or_default();
 
-    let _lock = ENV_MUTEX.lock().unwrap();
+    let _lock = ENV_MUTEX.lock();
     let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
     builder.set_profile(Profile::Debug);
@@ -105,11 +108,23 @@ fn should_write_assembly_in_debug_mode() {
 
 #[test]
 fn should_report_about_build_failure() {
-    let _lock = ENV_MUTEX.lock().unwrap();
+    let _lock = ENV_MUTEX.lock();
     let mut builder = Builder::new("tests/fixtures/faulty-crate").unwrap();
 
     let output = builder.disable_colors().build();
-    let crate_absoulte_path = current_dir().unwrap().join("tests/fixtures/faulty-crate");
+    let crate_absoulte_path = current_dir()
+        .unwrap()
+        .join("tests")
+        .join("fixtures")
+        .join("faulty-crate");
+
+    let lib_path = crate_absoulte_path.join("src").join("lib.rs");
+
+    let mut crate_absoulte_path_str = crate_absoulte_path.display().to_string();
+
+    if cfg!(windows) {
+        crate_absoulte_path_str = format!("/{}", crate_absoulte_path_str.replace("\\", "/"));
+    }
 
     match output {
         Err(Error(ErrorKind::BuildFailed(diagnostics), _)) => {
@@ -123,12 +138,12 @@ fn should_report_about_build_failure() {
                 &[
                     format!(
                         "   Compiling faulty-ptx_crate v0.1.0 (file://{})",
-                        crate_absoulte_path.as_path().to_str().unwrap()
+                        crate_absoulte_path_str
                     ),
                     String::from("error[E0425]: cannot find function `external_fn` in this scope"),
                     format!(
-                        " --> {}/src/lib.rs:6:20",
-                        crate_absoulte_path.as_path().to_str().unwrap()
+                        " --> {}:6:20",
+                        lib_path.display()
                     ),
                     String::from("  |"),
                     String::from("6 |     *y.offset(0) = external_fn(*x.offset(0)) * a;"),
@@ -153,7 +168,7 @@ fn should_report_about_build_failure() {
 
 #[test]
 fn should_provide_crate_source_files() {
-    let _lock = ENV_MUTEX.lock().unwrap();
+    let _lock = ENV_MUTEX.lock();
     let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
     match builder.build().unwrap() {
@@ -162,23 +177,35 @@ fn should_provide_crate_source_files() {
             let proxy_crate = project.get_proxy_crate().unwrap();
 
             let mut sources = output.source_files().unwrap();
-            sources.sort();
+            let mut expectations = vec![
+                current_dir()
+                    .unwrap()
+                    .join("tests")
+                    .join("fixtures")
+                    .join("sample-crate")
+                    .join("src")
+                    .join("lib.rs"),
+                current_dir()
+                    .unwrap()
+                    .join("tests")
+                    .join("fixtures")
+                    .join("sample-crate")
+                    .join("src")
+                    .join("mod1.rs"),
+                current_dir()
+                    .unwrap()
+                    .join("tests")
+                    .join("fixtures")
+                    .join("sample-crate")
+                    .join("src")
+                    .join("mod2.rs"),
+                proxy_crate.get_path().join("src").join("lib.rs"),
+            ];
 
-            assert_eq!(
-                sources,
-                &[
-                    current_dir()
-                        .unwrap()
-                        .join("tests/fixtures/sample-crate/src/lib.rs"),
-                    current_dir()
-                        .unwrap()
-                        .join("tests/fixtures/sample-crate/src/mod1.rs"),
-                    current_dir()
-                        .unwrap()
-                        .join("tests/fixtures/sample-crate/src/mod2.rs"),
-                    proxy_crate.get_path().join("src/lib.rs"),
-                ]
-            );
+            sources.sort();
+            expectations.sort();
+
+            assert_eq!(sources, expectations);
         }
 
         BuildStatus::NotNeeded => unreachable!(),
@@ -187,7 +214,7 @@ fn should_provide_crate_source_files() {
 
 #[test]
 fn should_not_get_built_from_rls() {
-    let _lock = ENV_MUTEX.lock().unwrap();
+    let _lock = ENV_MUTEX.lock();
     env::set_var("CARGO", "some/path/to/rls");
 
     assert_eq!(Builder::is_build_needed(), false);
@@ -203,7 +230,7 @@ fn should_not_get_built_from_rls() {
 
 #[test]
 fn should_not_get_built_recursively() {
-    let _lock = ENV_MUTEX.lock().unwrap();
+    let _lock = ENV_MUTEX.lock();
     env::set_var("PTX_CRATE_BUILDING", "1");
 
     assert_eq!(Builder::is_build_needed(), false);
