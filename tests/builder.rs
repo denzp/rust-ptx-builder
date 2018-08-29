@@ -133,6 +133,7 @@ fn should_report_about_build_failure() {
                     .into_iter()
                     .filter(|item| !item.contains("Blocking waiting")
                         && !item.contains("Compiling core")
+                        && !item.contains("Compiling compiler_builtins")
                         && !item.contains("Finished release [optimized] target(s)"))
                     .collect::<Vec<_>>(),
                 &[
