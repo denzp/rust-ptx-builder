@@ -1,8 +1,8 @@
 extern crate ptx_builder;
 
-use std::io::prelude::*;
+use std::env;
 use std::fs::{remove_dir_all, File};
-use std::path::PathBuf;
+use std::io::prelude::*;
 
 use ptx_builder::target::TargetInfo;
 
@@ -17,7 +17,10 @@ fn should_provide_target_name() {
 fn should_provide_definitions_path() {
     let target = TargetInfo::new().unwrap();
 
-    assert_eq!(target.get_path(), PathBuf::from("/tmp/ptx-builder-targets"));
+    assert_eq!(
+        target.get_path(),
+        env::temp_dir().join("ptx-builder-targets")
+    );
 }
 
 #[test]
@@ -25,7 +28,9 @@ fn should_store_json_definition() {
     remove_dir_all("/tmp/ptx-builder-targets").unwrap_or_default();
 
     TargetInfo::new().unwrap();
-    let path = PathBuf::from("/tmp/ptx-builder-targets/nvptx64-nvidia-cuda.json");
+    let path = env::temp_dir()
+        .join("ptx-builder-targets")
+        .join("nvptx64-nvidia-cuda.json");
 
     let mut contents = String::new();
 

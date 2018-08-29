@@ -1,5 +1,7 @@
 extern crate ptx_builder;
 
+use std::env;
+
 use ptx_builder::error::*;
 use ptx_builder::project::{Crate, Project};
 
@@ -45,8 +47,10 @@ fn should_provide_proxy_crate() {
     let proxy = project.get_proxy_crate().unwrap();
 
     assert!(
-        proxy
-            .get_output_path()
-            .starts_with("/tmp/ptx-builder/sample_ptx_crate")
+        proxy.get_output_path().starts_with(
+            env::temp_dir()
+                .join("ptx-builder-0.4")
+                .join("sample_ptx_crate")
+        )
     );
 }
