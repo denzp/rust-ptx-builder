@@ -1,6 +1,6 @@
 [package]
 name = "ptx-builder"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Denys Zariaiev <denys.zariaiev@gmail.com>"]
 license = "MIT"
 
@@ -26,4 +26,6 @@ lazy_static = "1.0"
 antidote = "1.0"
 
 [badges]
+appveyor = { repository = "denzp/rust-ptx-builder", branch = "master", service = "github" }
 travis-ci = { repository = "denzp/rust-ptx-builder", branch = "master" }
+maintenance = { status = "passively-maintained" }
