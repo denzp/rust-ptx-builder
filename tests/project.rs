@@ -49,7 +49,7 @@ fn should_provide_proxy_crate() {
     assert!(
         proxy.get_output_path().starts_with(
             env::temp_dir()
-                .join("ptx-builder-0.4")
+                .join("ptx-builder-0.5")
                 .join("sample_ptx_crate")
         )
     );

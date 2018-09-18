@@ -76,3 +76,6 @@ fn build() -> Result<()> {
 }
 
 ```
+
+## Breaking changes in 0.5
+TBD...

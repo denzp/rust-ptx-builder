@@ -25,23 +25,13 @@ crate_type = ["dylib"]
 "#;
 
 const DEFAULT_LIB_PREFIX: &str = r#"
-#![feature(panic_handler)]
 #![no_std]
 
 "#;
 
-const DEFAULT_LIB_SUFFIX: &str = r#"
-
-// Needed because we compile `dylib`...
-#[panic_handler]
-fn panic(_info: &::core::panic::PanicInfo) -> ! {
-    loop {}
-}
-"#;
-
 impl<'a> ProxyCrate<'a> {
     pub fn new(project: &'a Project) -> Result<Self> {
-        let mut path = env::temp_dir().join("ptx-builder-0.4");
+        let mut path = env::temp_dir().join("ptx-builder-0.5");
 
         path.push(&project.get_rustc_name());
         path.push(format!("{:x}", Self::get_project_hash(project)));
@@ -77,7 +67,6 @@ impl<'a> ProxyCrate<'a> {
             writer.write_all(
                 format!("extern crate {name};", name = self.project.get_rustc_name()).as_bytes(),
             )?;
-            writer.write_all(DEFAULT_LIB_SUFFIX.as_bytes())?;
         }
 
         Ok(())

@@ -1,6 +1,6 @@
 [package]
 name = "ptx-builder"
-version = "0.4.1"
+version = "0.5.0-alpha"
 authors = ["Denys Zariaiev <denys.zariaiev@gmail.com>"]
 license = "MIT"
 

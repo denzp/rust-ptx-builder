@@ -130,7 +130,7 @@ impl Executable for Cargo {
     }
 
     fn get_required_version(&self) -> Option<VersionReq> {
-        Some(VersionReq::parse(">= 1.27.0-nightly").unwrap())
+        Some(VersionReq::parse(">= 1.30.0-nightly").unwrap())
     }
 
     fn get_current_version(&self) -> Result<Version> {
