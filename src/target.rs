@@ -4,8 +4,8 @@ use std::io::prelude::*;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
-use error::*;
-use executable::{ExecutableRunner, Linker};
+use crate::error::*;
+use crate::executable::{ExecutableRunner, Linker};
 
 const DEFAULT_TARGET_NAME: &str = "nvptx64-nvidia-cuda";
 

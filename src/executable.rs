@@ -4,7 +4,9 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::process::Command;
 
-use error::*;
+use error_chain::bail;
+
+use crate::error::*;
 
 pub trait Executable {
     fn get_name(&self) -> String;

@@ -1,12 +1,14 @@
-use error::*;
 use std::collections::hash_map::DefaultHasher;
 use std::env;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::io::{BufReader, Read};
-
 use std::path::{Path, PathBuf};
+
+use error_chain::bail;
 use toml;
+
+use crate::error::*;
 
 #[derive(Hash, Clone)]
 pub enum CrateType {

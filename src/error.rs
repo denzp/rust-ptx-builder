@@ -1,6 +1,8 @@
-use colored::*;
-use semver::{Version, VersionReq};
 use std::path::PathBuf;
+
+use colored::*;
+use error_chain::*;
+use semver::{Version, VersionReq};
 
 error_chain! {
     errors {

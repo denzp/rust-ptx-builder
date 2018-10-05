@@ -1,7 +1,7 @@
 use colored::*;
 use std::fmt;
 
-use error::*;
+use crate::error::*;
 
 pub struct BuildReporter {
     error: Error,

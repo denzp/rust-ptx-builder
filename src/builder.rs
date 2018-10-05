@@ -4,12 +4,14 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
+use error_chain::bail;
+use lazy_static::*;
 use regex::Regex;
 
-use error::*;
-use executable::{ExecutableRunner, Xargo};
-use source::Crate;
-use target::TargetInfo;
+use crate::error::*;
+use crate::executable::{ExecutableRunner, Xargo};
+use crate::source::Crate;
+use crate::target::TargetInfo;
 
 pub struct Builder {
     source_crate: Crate,
