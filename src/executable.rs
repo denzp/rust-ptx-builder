@@ -87,14 +87,14 @@ impl<Ex: Executable> ExecutableRunner<Ex> {
             stderr: String::from_utf8(raw_output.stderr)?,
         };
 
-        match raw_output.status.success() {
-            true => Ok(output),
-
-            false => bail!(ErrorKind::CommandFailed(
+        if raw_output.status.success() {
+            Ok(output)
+        } else {
+            bail!(ErrorKind::CommandFailed(
                 self.executable.get_name(),
                 raw_output.status.code().unwrap_or(-1),
                 output.stderr,
-            )),
+            ))
         }
     }
 

@@ -1,5 +1,5 @@
-use std::fmt;
 use colored::*;
+use std::fmt;
 
 use error::*;
 
@@ -35,7 +35,7 @@ impl StringExt for String {
         let owned_prefix = prefix.to_string();
         let glue = String::from("\n") + &owned_prefix;
 
-        owned_prefix + &self.split("\n").collect::<Vec<_>>().join(&glue)
+        owned_prefix + &self.split('\n').collect::<Vec<_>>().join(&glue)
     }
 }
 

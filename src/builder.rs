@@ -82,10 +82,7 @@ impl Builder {
         }
 
         args.push("--color");
-        args.push(match self.colors {
-            true => "always",
-            false => "never",
-        });
+        args.push(if self.colors { "always" } else { "never" });
 
         args.push("--target");
         args.push(self.target.get_target_name());
@@ -113,8 +110,8 @@ impl Builder {
             Error(ErrorKind::CommandFailed(_, _, stderr), _) => {
                 let lines = stderr
                     .trim_matches('\n')
-                    .split("\n")
-                    .map(|item| String::from(item))
+                    .split('\n')
+                    .map(String::from)
                     .collect();
 
                 ErrorKind::BuildFailed(lines).into()
