@@ -3,19 +3,27 @@ extern crate ptx_builder;
 use std::env;
 
 use ptx_builder::error::*;
-use ptx_builder::project::{Crate, Project};
+use ptx_builder::source::Crate;
 
 #[test]
 fn should_find_crate_names() {
-    let project = Project::analyze("tests/fixtures/sample-crate").unwrap();
+    let source = Crate::analyze("tests/fixtures/sample-crate").unwrap();
 
-    assert_eq!(project.get_name(), "sample-ptx_crate");
-    assert_eq!(project.get_rustc_name(), "sample_ptx_crate");
+    assert_eq!(source.get_output_file_prefix(), "sample_ptx_crate");
+    assert_eq!(source.get_deps_file_prefix(), "libsample_ptx_crate");
+}
+
+#[test]
+fn should_find_app_crate_names() {
+    let source = Crate::analyze("tests/fixtures/app-crate").unwrap();
+
+    assert_eq!(source.get_output_file_prefix(), "sample_app_ptx_crate");
+    assert_eq!(source.get_deps_file_prefix(), "sample_app_ptx_crate");
 }
 
 #[test]
 fn should_check_existence_of_crate_path() {
-    let result = Project::analyze("tests/fixtures/non-existing-crate");
+    let result = Crate::analyze("tests/fixtures/non-existing-crate");
 
     match result {
         Err(Error(ErrorKind::InvalidCratePath(path), _)) => {
@@ -29,7 +37,7 @@ fn should_check_existence_of_crate_path() {
 
 #[test]
 fn should_check_validity_of_crate_path() {
-    let result = Project::analyze("tests/builder.rs");
+    let result = Crate::analyze("tests/builder.rs");
 
     match result {
         Err(Error(ErrorKind::InvalidCratePath(path), _)) => {
@@ -42,12 +50,11 @@ fn should_check_validity_of_crate_path() {
 }
 
 #[test]
-fn should_provide_proxy_crate() {
-    let project = Project::analyze("tests/fixtures/sample-crate").unwrap();
-    let proxy = project.get_proxy_crate().unwrap();
+fn should_provide_output_path() {
+    let source_crate = Crate::analyze("tests/fixtures/sample-crate").unwrap();
 
     assert!(
-        proxy.get_output_path().starts_with(
+        source_crate.get_output_path().unwrap().starts_with(
             env::temp_dir()
                 .join("ptx-builder-0.5")
                 .join("sample_ptx_crate")

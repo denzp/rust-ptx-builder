@@ -3,6 +3,9 @@
 #[macro_use]
 extern crate error_chain;
 
+#[macro_use]
+extern crate lazy_static;
+
 extern crate colored;
 extern crate regex;
 extern crate semver;
@@ -12,9 +15,8 @@ pub mod error;
 pub mod executable;
 
 pub mod builder;
-pub mod project;
-pub mod proxy;
 pub mod reporter;
+pub mod source;
 pub mod target;
 
 pub mod prelude {

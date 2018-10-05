@@ -1,7 +1,7 @@
 use std::env;
 use std::fs::{create_dir_all, File};
-use std::io::BufWriter;
 use std::io::prelude::*;
+use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
 use error::*;
@@ -20,7 +20,6 @@ impl TargetInfo {
             .clone()
             .join(format!("{}.json", DEFAULT_TARGET_NAME));
 
-        // TODO: check if linker version >= 0.5.0
         let linker_output = ExecutableRunner::new(Linker)
             .with_args(&["print", DEFAULT_TARGET_NAME])
             .run()?;

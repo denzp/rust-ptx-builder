@@ -4,27 +4,29 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
+use regex::Regex;
+
 use error::*;
 use executable::{ExecutableRunner, Xargo};
-use project::{Crate, Project};
+use source::Crate;
 use target::TargetInfo;
 
 pub struct Builder {
-    project: Project,
+    source_crate: Crate,
     target: TargetInfo,
 
     profile: Profile,
     colors: bool,
 }
 
-pub struct Output {
+pub struct Output<'a> {
+    builder: &'a Builder,
     output_path: PathBuf,
-    crate_name: String,
-    profile: Profile,
+    file_suffix: String,
 }
 
-pub enum BuildStatus {
-    Success(Output),
+pub enum BuildStatus<'a> {
+    Success(Output<'a>),
     NotNeeded,
 }
 
@@ -37,7 +39,7 @@ pub enum Profile {
 impl Builder {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         Ok(Builder {
-            project: Project::analyze(path).chain_err(|| "Unable to analyze project")?,
+            source_crate: Crate::analyze(path).chain_err(|| "Unable to analyze source crate")?,
             target: TargetInfo::new().chain_err(|| "Unable to get target details")?,
 
             profile: Profile::Release, // TODO: choose automatically, e.g.: `env::var("PROFILE").unwrap_or("release".to_string())`
@@ -65,25 +67,15 @@ impl Builder {
         self
     }
 
-    pub fn build(&mut self) -> Result<BuildStatus> {
+    pub fn build(&self) -> Result<BuildStatus> {
         if !Self::is_build_needed() {
             return Ok(BuildStatus::NotNeeded);
         }
 
-        let mut proxy = {
-            self.project
-                .get_proxy_crate()
-                .chain_err(|| "Unable to create proxy crate")?
-        };
-
-        proxy
-            .initialize()
-            .chain_err(|| "Unable to initialize proxy crate")?;
-
         let mut xargo = ExecutableRunner::new(Xargo);
         let mut args = Vec::new();
 
-        args.push("build");
+        args.push("rustc");
 
         if self.profile == Profile::Release {
             args.push("--release");
@@ -98,14 +90,26 @@ impl Builder {
         args.push("--target");
         args.push(self.target.get_target_name());
 
+        args.push("-v");
+        args.push("--");
+        args.push("--crate-type");
+        args.push("dylib");
+
+        let output_path = {
+            self.source_crate
+                .get_output_path()
+                .chain_err(|| "Unable to create output path")?
+        };
+
         xargo
             .with_args(&args)
-            .with_cwd(proxy.get_path())
+            .with_cwd(self.source_crate.get_path())
             .with_env("PTX_CRATE_BUILDING", "1")
-            .with_env("CARGO_TARGET_DIR", proxy.get_output_path())
+            .with_env("RUSTC", "rustc-dylib-wrapper")
+            .with_env("CARGO_TARGET_DIR", output_path.clone())
             .with_env("RUST_TARGET_PATH", self.target.get_path());
 
-        xargo.run().map_err(|error| match error {
+        let xargo_output = xargo.run().map_err(|error| match error {
             Error(ErrorKind::CommandFailed(_, _, stderr), _) => {
                 let lines = stderr
                     .trim_matches('\n')
@@ -119,28 +123,50 @@ impl Builder {
             _ => error,
         })?;
 
-        Ok(BuildStatus::Success(Output::new(
-            proxy.get_output_path(),
-            proxy.get_name(),
-            self.profile.clone(),
-        )))
+        Ok(BuildStatus::Success(
+            self.prepare_output(output_path, &xargo_output.stderr)?,
+        ))
+    }
+
+    fn prepare_output(&self, output_path: PathBuf, xargo_stderr: &str) -> Result<Output> {
+        lazy_static! {
+            static ref SUFFIX_REGEX: Regex =
+                Regex::new(r"-C extra-filename=([\S]+)").expect("Unable to parse regex...");
+        }
+
+        let file_suffix = match SUFFIX_REGEX.captures(xargo_stderr) {
+            Some(caps) => caps[1].to_string(),
+
+            None => {
+                bail!(ErrorKind::InternalError(String::from(
+                    "Unable to find `extra-filename` rustc flag"
+                )));
+            }
+        };
+
+        Ok(Output::new(self, output_path, file_suffix))
     }
 }
 
-impl Output {
-    fn new(output_path: PathBuf, crate_name: &str, profile: Profile) -> Self {
+impl<'a> Output<'a> {
+    fn new(builder: &'a Builder, output_path: PathBuf, file_suffix: String) -> Self {
         Output {
+            builder,
             output_path,
-            crate_name: String::from(crate_name),
-            profile,
+            file_suffix,
         }
     }
 
     pub fn get_assembly_path(&self) -> PathBuf {
         self.output_path
-            .join("nvptx64-nvidia-cuda")
-            .join(self.profile.to_string())
-            .join(format!("{}.ptx", self.crate_name))
+            .join(self.builder.target.get_target_name())
+            .join(self.builder.profile.to_string())
+            .join("deps")
+            .join(format!(
+                "{}{}.ptx",
+                self.builder.source_crate.get_output_file_prefix(),
+                self.file_suffix,
+            ))
     }
 
     pub fn source_files(&self) -> Result<Vec<PathBuf>> {
@@ -149,37 +175,38 @@ impl Output {
                 .chain_err(|| "Unable to get crate deps")?
         };
 
-        let assembly_path = self.get_assembly_path();
-
         if deps_contents.is_empty() {
             bail!(ErrorKind::InternalError(String::from("Empty deps file")));
         }
 
-        if !deps_contents.starts_with(assembly_path.to_str().unwrap()) {
-            bail!(ErrorKind::InternalError(String::from(
-                "Paths misalignment in deps file"
-            )));
-        }
-
         deps_contents = deps_contents
             .chars()
-            .skip(assembly_path.to_str().unwrap().len())
-            .skip_while(|c| *c == ':')
+            .skip_while(|c| *c != ':')
+            .skip(1)
             .collect::<String>();
+
+        let cargo_deps = vec![
+            self.builder.source_crate.get_path().join("Cargo.toml"),
+            self.builder.source_crate.get_path().join("Cargo.lock"),
+        ];
 
         Ok(deps_contents
             .trim()
             .split(' ')
             .map(|item| PathBuf::from(item.trim()))
+            .chain(cargo_deps.into_iter())
             .collect())
     }
 
     fn get_deps_file_contents(&self) -> Result<String> {
         let crate_deps_path = self
             .output_path
-            .join("nvptx64-nvidia-cuda")
-            .join(self.profile.to_string())
-            .join(format!("{}.d", self.crate_name));
+            .join(self.builder.target.get_target_name())
+            .join(self.builder.profile.to_string())
+            .join(format!(
+                "{}.d",
+                self.builder.source_crate.get_deps_file_prefix()
+            ));
 
         let mut crate_deps_reader = BufReader::new(File::open(crate_deps_path)?);
         let mut crate_deps_contents = String::new();

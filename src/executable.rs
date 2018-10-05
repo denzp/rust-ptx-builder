@@ -30,6 +30,7 @@ pub struct ExecutableRunner<Ex: Executable> {
     executable: Ex,
 }
 
+#[derive(Debug)]
 pub struct Output {
     pub stdout: String,
     pub stderr: String,
@@ -158,7 +159,7 @@ impl Executable for Linker {
     }
 
     fn get_required_version(&self) -> Option<VersionReq> {
-        Some(VersionReq::parse(">= 0.7.0").unwrap())
+        Some(VersionReq::parse(">= 0.7.4").unwrap())
     }
 }
 
