@@ -13,6 +13,7 @@ use crate::executable::{ExecutableRunner, Xargo};
 use crate::source::Crate;
 use crate::target::TargetInfo;
 
+/// Core of the crate - PTX assembly build controller.
 pub struct Builder {
     source_crate: Crate,
     target: TargetInfo,
@@ -21,27 +22,58 @@ pub struct Builder {
     colors: bool,
 }
 
-pub struct Output<'a> {
+/// Successful build output.
+pub struct BuildOutput<'a> {
     builder: &'a Builder,
     output_path: PathBuf,
     file_suffix: String,
 }
 
+/// Non-failed build status.
 pub enum BuildStatus<'a> {
-    Success(Output<'a>),
+    /// The CUDA crate building was performed without errors.
+    Success(BuildOutput<'a>),
+
+    /// The CUDA crate building is not needed. Can happend in several cases:
+    /// - `build.rs` script was called by **RLS**,
+    /// - `build.rs` was called **recursively** (e.g. `build.rs` call for device crate in single-source setup)
     NotNeeded,
 }
 
 #[derive(PartialEq, Clone)]
+/// Debug / Release profile.
 pub enum Profile {
+    /// Equivalent for `cargo-build` **without** `--release` flag.
     Debug,
+
+    /// Equivalent for `cargo-build` **with** `--release` flag.
     Release,
 }
 
 impl Builder {
+    /// Construct a builder for device crate at `path`.
+    ///
+    /// Can also be the same crate, for single-source mode:
+    /// ```
+    /// # use ptx_builder::prelude::*;
+    /// # use ptx_builder::error::*;
+    /// # fn main() -> Result<()> {
+    /// # std::env::set_current_dir("tests/fixtures/sample-crate")?;
+    /// match Builder::new(".")?.build()? {
+    ///     BuildStatus::Success(output) => {
+    ///         // do something with the output...
+    ///     }
+    ///
+    ///     BuildStatus::NotNeeded => {
+    ///         // ...
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         Ok(Builder {
-            source_crate: Crate::analyze(path).chain_err(|| "Unable to analyze source crate")?,
+            source_crate: Crate::analyse(path).chain_err(|| "Unable to analyse source crate")?,
             target: TargetInfo::new().chain_err(|| "Unable to get target details")?,
 
             profile: Profile::Release, // TODO: choose automatically, e.g.: `env::var("PROFILE").unwrap_or("release".to_string())`
@@ -49,6 +81,10 @@ impl Builder {
         })
     }
 
+    /// Returns bool indicating whether the actual build is needed.
+    ///
+    /// Behavior is consistent with
+    /// [`BuildStatus::NotNeeded`](enum.BuildStatus.html#variant.NotNeeded).
     pub fn is_build_needed() -> bool {
         let cargo_env = env::var("CARGO");
         let recursive_env = env::var("PTX_CRATE_BUILDING");
@@ -59,16 +95,19 @@ impl Builder {
         !is_rls_build && !is_recursive_build
     }
 
+    /// Disable colors for internal calls to `xargo` (and eventually `cargo`).
     pub fn disable_colors(&mut self) -> &mut Self {
         self.colors = false;
         self
     }
 
+    /// Set build profile.
     pub fn set_profile(&mut self, profile: Profile) -> &mut Self {
         self.profile = profile;
         self
     }
 
+    /// Performs an actual build: runs `xargo` with proper flags and environment.
     pub fn build(&self) -> Result<BuildStatus> {
         if !Self::is_build_needed() {
             return Ok(BuildStatus::NotNeeded);
@@ -127,7 +166,7 @@ impl Builder {
         ))
     }
 
-    fn prepare_output(&self, output_path: PathBuf, xargo_stderr: &str) -> Result<Output> {
+    fn prepare_output(&self, output_path: PathBuf, xargo_stderr: &str) -> Result<BuildOutput> {
         lazy_static! {
             static ref SUFFIX_REGEX: Regex =
                 Regex::new(r"-C extra-filename=([\S]+)").expect("Unable to parse regex...");
@@ -143,19 +182,37 @@ impl Builder {
             }
         };
 
-        Ok(Output::new(self, output_path, file_suffix))
+        Ok(BuildOutput::new(self, output_path, file_suffix))
     }
 }
 
-impl<'a> Output<'a> {
+impl<'a> BuildOutput<'a> {
     fn new(builder: &'a Builder, output_path: PathBuf, file_suffix: String) -> Self {
-        Output {
+        BuildOutput {
             builder,
             output_path,
             file_suffix,
         }
     }
 
+    /// Returns path to PTX assembly file.
+    ///
+    /// # Usage
+    /// Can be used from `build.rs` script to provide Rust with the path
+    /// via environment variable:
+    /// ```
+    /// # use ptx_builder::prelude::*;
+    /// # use ptx_builder::error::*;
+    /// # fn main() -> Result<()> {
+    /// # if let BuildStatus::Success(output) = Builder::new("tests/fixtures/sample-crate")?.build()? {
+    /// println!(
+    ///     "cargo:rustc-env=KERNEL_PTX_PATH={}",
+    ///     output.get_assembly_path().display()
+    /// );
+    /// # }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn get_assembly_path(&self) -> PathBuf {
         self.output_path
             .join(self.builder.target.get_target_name())
@@ -168,7 +225,24 @@ impl<'a> Output<'a> {
             ))
     }
 
-    pub fn source_files(&self) -> Result<Vec<PathBuf>> {
+    /// Returns a list of crate dependencies.
+    ///
+    /// # Usage
+    /// Can be used from `build.rs` script to notify Cargo the dependencies,
+    /// so it can automatically rebuild on changes:
+    /// ```
+    /// # use ptx_builder::prelude::*;
+    /// # use ptx_builder::error::*;
+    /// # fn main() -> Result<()> {
+    /// # if let BuildStatus::Success(output) = Builder::new("tests/fixtures/sample-crate")?.build()? {
+    /// for path in output.dependencies()? {
+    ///     println!("cargo:rerun-if-changed={}", path.display());
+    /// }
+    /// # }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn dependencies(&self) -> Result<Vec<PathBuf>> {
         let mut deps_contents = {
             self.get_deps_file_contents()
                 .chain_err(|| "Unable to get crate deps")?

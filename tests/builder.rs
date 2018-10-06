@@ -12,7 +12,6 @@ use std::path::PathBuf;
 
 use ptx_builder::builder::{BuildStatus, Builder, Profile};
 use ptx_builder::error::*;
-use ptx_builder::source::Crate;
 
 lazy_static! {
     static ref ENV_MUTEX: Mutex<()> = Mutex::new(());
@@ -20,8 +19,7 @@ lazy_static! {
 
 #[test]
 fn should_provide_output_path() {
-    let source_crate = Crate::analyze("tests/fixtures/sample-crate").unwrap();
-    remove_dir_all(source_crate.get_output_path().unwrap()).unwrap_or_default();
+    remove_dir_all(env::temp_dir().join("ptx-builder-0.5")).unwrap_or_default();
 
     let _lock = ENV_MUTEX.lock();
     let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
@@ -30,11 +28,9 @@ fn should_provide_output_path() {
         BuildStatus::Success(output) => {
             assert!(
                 output.get_assembly_path().starts_with(
-                    source_crate
-                        .get_output_path()
-                        .unwrap()
-                        .join("nvptx64-nvidia-cuda")
-                        .join("release")
+                    env::temp_dir()
+                        .join("ptx-builder-0.5")
+                        .join("sample_ptx_crate"),
                 )
             );
         }
@@ -45,8 +41,7 @@ fn should_provide_output_path() {
 
 #[test]
 fn should_write_assembly() {
-    let source_crate = Crate::analyze("tests/fixtures/sample-crate").unwrap();
-    remove_dir_all(source_crate.get_output_path().unwrap()).unwrap_or_default();
+    remove_dir_all(env::temp_dir().join("ptx-builder-0.5")).unwrap_or_default();
 
     let _lock = ENV_MUTEX.lock();
     let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
@@ -76,8 +71,7 @@ fn should_write_assembly() {
 
 #[test]
 fn should_build_application_crate() {
-    let source_crate = Crate::analyze("tests/fixtures/app-crate").unwrap();
-    remove_dir_all(source_crate.get_output_path().unwrap()).unwrap_or_default();
+    remove_dir_all(env::temp_dir().join("ptx-builder-0.5")).unwrap_or_default();
 
     let _lock = ENV_MUTEX.lock();
     let mut builder = Builder::new("tests/fixtures/app-crate").unwrap();
@@ -107,8 +101,7 @@ fn should_build_application_crate() {
 
 #[test]
 fn should_write_assembly_in_debug_mode() {
-    let source_crate = Crate::analyze("tests/fixtures/sample-crate").unwrap();
-    remove_dir_all(source_crate.get_output_path().unwrap()).unwrap_or_default();
+    remove_dir_all(env::temp_dir().join("ptx-builder-0.5")).unwrap_or_default();
 
     let _lock = ENV_MUTEX.lock();
     let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
@@ -140,6 +133,8 @@ fn should_write_assembly_in_debug_mode() {
 
 #[test]
 fn should_report_about_build_failure() {
+    remove_dir_all(env::temp_dir().join("ptx-builder-0.5")).unwrap_or_default();
+
     let _lock = ENV_MUTEX.lock();
     let mut builder = Builder::new("tests/fixtures/faulty-crate").unwrap();
 
@@ -206,7 +201,7 @@ fn should_provide_crate_source_files() {
 
     match builder.disable_colors().build().unwrap() {
         BuildStatus::Success(output) => {
-            let mut sources = output.source_files().unwrap();
+            let mut sources = output.dependencies().unwrap();
             let mut expectations = vec![
                 current_dir()
                     .unwrap()

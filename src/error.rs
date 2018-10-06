@@ -25,7 +25,7 @@ error_chain! {
         }
 
         InvalidCratePath(path: PathBuf) {
-            display("{}: {}", "Invalid device crate path".bold(), path.to_str().unwrap()),
+            display("{}: {}", "Invalid device crate path".bold(), path.display()),
         }
 
         BuildFailed(diagnostics: Vec<String>) {
