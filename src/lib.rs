@@ -1,3 +1,4 @@
+#![feature(tool_lints)]
 #![deny(warnings)]
 
 /// Error handling.
@@ -19,5 +20,5 @@ mod target;
 pub mod prelude {
     pub use crate::builder::{BuildStatus, Builder, Profile};
     pub use crate::error::Result;
-    pub use crate::reporter::BuildReporter;
+    pub use crate::reporter::{CargoAdapter, ErrorLogPrinter};
 }

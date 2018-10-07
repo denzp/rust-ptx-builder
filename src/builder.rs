@@ -54,11 +54,11 @@ impl Builder {
     /// Construct a builder for device crate at `path`.
     ///
     /// Can also be the same crate, for single-source mode:
-    /// ```
-    /// # use ptx_builder::prelude::*;
+    /// ``` no_run
+    /// use ptx_builder::prelude::*;
     /// # use ptx_builder::error::*;
+    ///
     /// # fn main() -> Result<()> {
-    /// # std::env::set_current_dir("tests/fixtures/sample-crate")?;
     /// match Builder::new(".")?.build()? {
     ///     BuildStatus::Success(output) => {
     ///         // do something with the output...
@@ -96,13 +96,13 @@ impl Builder {
     }
 
     /// Disable colors for internal calls to `xargo` (and eventually `cargo`).
-    pub fn disable_colors(&mut self) -> &mut Self {
+    pub fn disable_colors(mut self) -> Self {
         self.colors = false;
         self
     }
 
     /// Set build profile.
-    pub fn set_profile(&mut self, profile: Profile) -> &mut Self {
+    pub fn set_profile(mut self, profile: Profile) -> Self {
         self.profile = profile;
         self
     }
@@ -200,16 +200,17 @@ impl<'a> BuildOutput<'a> {
     /// # Usage
     /// Can be used from `build.rs` script to provide Rust with the path
     /// via environment variable:
-    /// ```
-    /// # use ptx_builder::prelude::*;
+    /// ```no_run
+    /// use ptx_builder::prelude::*;
     /// # use ptx_builder::error::*;
+    ///
     /// # fn main() -> Result<()> {
-    /// # if let BuildStatus::Success(output) = Builder::new("tests/fixtures/sample-crate")?.build()? {
-    /// println!(
-    ///     "cargo:rustc-env=KERNEL_PTX_PATH={}",
-    ///     output.get_assembly_path().display()
-    /// );
-    /// # }
+    /// if let BuildStatus::Success(output) = Builder::new(".")?.build()? {
+    ///     println!(
+    ///         "cargo:rustc-env=KERNEL_PTX_PATH={}",
+    ///         output.get_assembly_path().display()
+    ///     );
+    /// }
     /// # Ok(())
     /// # }
     /// ```
@@ -230,15 +231,16 @@ impl<'a> BuildOutput<'a> {
     /// # Usage
     /// Can be used from `build.rs` script to notify Cargo the dependencies,
     /// so it can automatically rebuild on changes:
-    /// ```
-    /// # use ptx_builder::prelude::*;
+    /// ```no_run
+    /// use ptx_builder::prelude::*;
     /// # use ptx_builder::error::*;
+    ///
     /// # fn main() -> Result<()> {
-    /// # if let BuildStatus::Success(output) = Builder::new("tests/fixtures/sample-crate")?.build()? {
-    /// for path in output.dependencies()? {
-    ///     println!("cargo:rerun-if-changed={}", path.display());
+    /// if let BuildStatus::Success(output) = Builder::new(".")?.build()? {
+    ///     for path in output.dependencies()? {
+    ///         println!("cargo:rerun-if-changed={}", path.display());
+    ///     }
     /// }
-    /// # }
     /// # Ok(())
     /// # }
     /// ```

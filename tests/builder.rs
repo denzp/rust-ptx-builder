@@ -22,7 +22,7 @@ fn should_provide_output_path() {
     remove_dir_all(env::temp_dir().join("ptx-builder-0.5")).unwrap_or_default();
 
     let _lock = ENV_MUTEX.lock();
-    let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
+    let builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
     match builder.disable_colors().build().unwrap() {
         BuildStatus::Success(output) => {
@@ -44,7 +44,7 @@ fn should_write_assembly() {
     remove_dir_all(env::temp_dir().join("ptx-builder-0.5")).unwrap_or_default();
 
     let _lock = ENV_MUTEX.lock();
-    let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
+    let builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
     match builder.disable_colors().build().unwrap() {
         BuildStatus::Success(output) => {
@@ -74,7 +74,7 @@ fn should_build_application_crate() {
     remove_dir_all(env::temp_dir().join("ptx-builder-0.5")).unwrap_or_default();
 
     let _lock = ENV_MUTEX.lock();
-    let mut builder = Builder::new("tests/fixtures/app-crate").unwrap();
+    let builder = Builder::new("tests/fixtures/app-crate").unwrap();
 
     match builder.disable_colors().build().unwrap() {
         BuildStatus::Success(output) => {
@@ -104,11 +104,14 @@ fn should_write_assembly_in_debug_mode() {
     remove_dir_all(env::temp_dir().join("ptx-builder-0.5")).unwrap_or_default();
 
     let _lock = ENV_MUTEX.lock();
-    let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
+    let builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
-    builder.set_profile(Profile::Debug);
-
-    match builder.disable_colors().build().unwrap() {
+    match builder
+        .set_profile(Profile::Debug)
+        .disable_colors()
+        .build()
+        .unwrap()
+    {
         BuildStatus::Success(output) => {
             let mut assembly_contents = String::new();
 
@@ -136,9 +139,11 @@ fn should_report_about_build_failure() {
     remove_dir_all(env::temp_dir().join("ptx-builder-0.5")).unwrap_or_default();
 
     let _lock = ENV_MUTEX.lock();
-    let mut builder = Builder::new("tests/fixtures/faulty-crate").unwrap();
+    let builder = Builder::new("tests/fixtures/faulty-crate")
+        .unwrap()
+        .disable_colors();
 
-    let output = builder.disable_colors().build();
+    let output = builder.build();
     let crate_absoulte_path = current_dir()
         .unwrap()
         .join("tests")
@@ -197,7 +202,7 @@ fn should_report_about_build_failure() {
 #[test]
 fn should_provide_crate_source_files() {
     let _lock = ENV_MUTEX.lock();
-    let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
+    let builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
     match builder.disable_colors().build().unwrap() {
         BuildStatus::Success(output) => {
@@ -254,7 +259,7 @@ fn should_not_get_built_from_rls() {
     env::set_var("CARGO", "some/path/to/rls");
 
     assert_eq!(Builder::is_build_needed(), false);
-    let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
+    let builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
     match builder.disable_colors().build().unwrap() {
         BuildStatus::NotNeeded => {}
@@ -270,7 +275,7 @@ fn should_not_get_built_recursively() {
     env::set_var("PTX_CRATE_BUILDING", "1");
 
     assert_eq!(Builder::is_build_needed(), false);
-    let mut builder = Builder::new("tests/fixtures/sample-crate").unwrap();
+    let builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
     match builder.disable_colors().build().unwrap() {
         BuildStatus::NotNeeded => {}
