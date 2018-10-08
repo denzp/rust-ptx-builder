@@ -2,3 +2,7 @@
 name = "sample-ptx_crate"
 version = "0.1.0"
 authors = ["Denys Zariaiev <denys.zariaiev@gmail.com>"]
+
+[dependencies.either]
+version = "1.5"
+default-features = false

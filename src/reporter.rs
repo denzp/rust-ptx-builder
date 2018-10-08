@@ -13,8 +13,8 @@ use crate::error::*;
 ///
 /// # Usage in `build.rs`
 /// ```no_run
+/// use ptx_builder::error::Result;
 /// use ptx_builder::prelude::*;
-/// use ptx_builder::error::*;
 ///
 /// fn main() -> Result<()> {
 ///     CargoAdapter::new("PTX_PATH").build(Builder::new(".")?);

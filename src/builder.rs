@@ -1,6 +1,6 @@
 use std::env;
 use std::fmt;
-use std::fs::File;
+use std::fs::{read_to_string, write, File};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
@@ -12,6 +12,8 @@ use crate::error::*;
 use crate::executable::{ExecutableRunner, Xargo};
 use crate::source::Crate;
 use crate::target::TargetInfo;
+
+const LAST_BUILD_CMD: &str = ".last-build-command";
 
 /// Core of the crate - PTX assembly build controller.
 pub struct Builder {
@@ -56,7 +58,7 @@ impl Builder {
     /// Can also be the same crate, for single-source mode:
     /// ``` no_run
     /// use ptx_builder::prelude::*;
-    /// # use ptx_builder::error::*;
+    /// # use ptx_builder::error::Result;
     ///
     /// # fn main() -> Result<()> {
     /// match Builder::new(".")?.build()? {
@@ -152,6 +154,7 @@ impl Builder {
                 let lines = stderr
                     .trim_matches('\n')
                     .split('\n')
+                    .filter(Self::output_is_not_verbose)
                     .map(String::from)
                     .collect();
 
@@ -172,7 +175,32 @@ impl Builder {
                 Regex::new(r"-C extra-filename=([\S]+)").expect("Unable to parse regex...");
         }
 
-        let file_suffix = match SUFFIX_REGEX.captures(xargo_stderr) {
+        let build_command = {
+            xargo_stderr
+                .trim_matches('\n')
+                .split('\n')
+                .find(|line| {
+                    line.contains(&format!(
+                        "--crate-name {}",
+                        self.source_crate.get_output_file_prefix()
+                    ))
+                })
+                .map(|line| BuildCommand::Realtime(line.to_string()))
+                .or_else(|| Self::load_cached_build_command(&output_path))
+                .ok_or_else(|| {
+                    Error::from(ErrorKind::InternalError(String::from(
+                        "Unable to find build command of the device crate",
+                    )))
+                })?
+        };
+
+        if let BuildCommand::Realtime(ref command) = build_command {
+            Self::store_cached_build_command(&output_path, &command)?;
+        }
+
+        println!("{}", build_command.deref());
+
+        let file_suffix = match SUFFIX_REGEX.captures(&build_command) {
             Some(caps) => caps[1].to_string(),
 
             None => {
@@ -183,6 +211,27 @@ impl Builder {
         };
 
         Ok(BuildOutput::new(self, output_path, file_suffix))
+    }
+
+    fn output_is_not_verbose(line: &&str) -> bool {
+        !line.starts_with("+ ")
+            && !line.contains("Running")
+            && !line.contains("Fresh")
+            && !line.starts_with("Caused by:")
+            && !line.starts_with("  process didn\'t exit successfully: ")
+    }
+
+    fn load_cached_build_command(output_path: &Path) -> Option<BuildCommand> {
+        match read_to_string(output_path.join(LAST_BUILD_CMD)) {
+            Ok(contents) => Some(BuildCommand::Cached(contents)),
+            Err(_) => None,
+        }
+    }
+
+    fn store_cached_build_command(output_path: &Path, command: &str) -> Result<()> {
+        write(output_path.join(LAST_BUILD_CMD), command.as_bytes())?;
+
+        Ok(())
     }
 }
 
@@ -202,7 +251,7 @@ impl<'a> BuildOutput<'a> {
     /// via environment variable:
     /// ```no_run
     /// use ptx_builder::prelude::*;
-    /// # use ptx_builder::error::*;
+    /// # use ptx_builder::error::Result;
     ///
     /// # fn main() -> Result<()> {
     /// if let BuildStatus::Success(output) = Builder::new(".")?.build()? {
@@ -233,7 +282,7 @@ impl<'a> BuildOutput<'a> {
     /// so it can automatically rebuild on changes:
     /// ```no_run
     /// use ptx_builder::prelude::*;
-    /// # use ptx_builder::error::*;
+    /// # use ptx_builder::error::Result;
     ///
     /// # fn main() -> Result<()> {
     /// if let BuildStatus::Success(output) = Builder::new(".")?.build()? {
@@ -297,6 +346,22 @@ impl fmt::Display for Profile {
         match self {
             Profile::Debug => write!(f, "debug"),
             Profile::Release => write!(f, "release"),
+        }
+    }
+}
+
+enum BuildCommand {
+    Realtime(String),
+    Cached(String),
+}
+
+impl std::ops::Deref for BuildCommand {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        match self {
+            BuildCommand::Realtime(line) => &line,
+            BuildCommand::Cached(line) => &line,
         }
     }
 }

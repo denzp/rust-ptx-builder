@@ -19,7 +19,7 @@ lazy_static! {
 
 #[test]
 fn should_provide_output_path() {
-    remove_dir_all(env::temp_dir().join("ptx-builder-0.5")).unwrap_or_default();
+    cleanup_temp_location();
 
     let _lock = ENV_MUTEX.lock();
     let builder = Builder::new("tests/fixtures/sample-crate").unwrap();
@@ -41,7 +41,7 @@ fn should_provide_output_path() {
 
 #[test]
 fn should_write_assembly() {
-    remove_dir_all(env::temp_dir().join("ptx-builder-0.5")).unwrap_or_default();
+    cleanup_temp_location();
 
     let _lock = ENV_MUTEX.lock();
     let builder = Builder::new("tests/fixtures/sample-crate").unwrap();
@@ -71,7 +71,7 @@ fn should_write_assembly() {
 
 #[test]
 fn should_build_application_crate() {
-    remove_dir_all(env::temp_dir().join("ptx-builder-0.5")).unwrap_or_default();
+    cleanup_temp_location();
 
     let _lock = ENV_MUTEX.lock();
     let builder = Builder::new("tests/fixtures/app-crate").unwrap();
@@ -100,8 +100,44 @@ fn should_build_application_crate() {
 }
 
 #[test]
+fn should_handle_rebuild_without_changes() {
+    cleanup_temp_location();
+
+    let _lock = ENV_MUTEX.lock();
+    let builder = {
+        Builder::new("tests/fixtures/app-crate")
+            .unwrap()
+            .disable_colors()
+    };
+
+    builder.build().unwrap();
+
+    match builder.build().unwrap() {
+        BuildStatus::Success(output) => {
+            let mut assembly_contents = String::new();
+
+            File::open(output.get_assembly_path())
+                .unwrap()
+                .read_to_string(&mut assembly_contents)
+                .unwrap();
+
+            assert!(
+                output
+                    .get_assembly_path()
+                    .to_string_lossy()
+                    .contains("release")
+            );
+
+            assert!(assembly_contents.contains(".visible .entry the_kernel("));
+        }
+
+        BuildStatus::NotNeeded => unreachable!(),
+    }
+}
+
+#[test]
 fn should_write_assembly_in_debug_mode() {
-    remove_dir_all(env::temp_dir().join("ptx-builder-0.5")).unwrap_or_default();
+    cleanup_temp_location();
 
     let _lock = ENV_MUTEX.lock();
     let builder = Builder::new("tests/fixtures/sample-crate").unwrap();
@@ -136,7 +172,7 @@ fn should_write_assembly_in_debug_mode() {
 
 #[test]
 fn should_report_about_build_failure() {
-    remove_dir_all(env::temp_dir().join("ptx-builder-0.5")).unwrap_or_default();
+    cleanup_temp_location();
 
     let _lock = ENV_MUTEX.lock();
     let builder = Builder::new("tests/fixtures/faulty-crate")
@@ -166,11 +202,7 @@ fn should_report_about_build_failure() {
                     .filter(|item| !item.contains("Blocking waiting")
                         && !item.contains("Compiling core")
                         && !item.contains("Compiling compiler_builtins")
-                        && !item.contains("Finished release [optimized] target(s)")
-                        && !item.contains("Running")
-                        && !item.starts_with("+ ")
-                        && !item.starts_with("Caused by:")
-                        && !item.starts_with("  process didn\'t exit successfully: "))
+                        && !item.contains("Finished release [optimized] target(s)"))
                     .collect::<Vec<_>>(),
                 &[
                     format!(
@@ -204,43 +236,57 @@ fn should_provide_crate_source_files() {
     let _lock = ENV_MUTEX.lock();
     let builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
+    let crate_path = {
+        current_dir()
+            .unwrap()
+            .join("tests")
+            .join("fixtures")
+            .join("sample-crate")
+    };
+
     match builder.disable_colors().build().unwrap() {
         BuildStatus::Success(output) => {
             let mut sources = output.dependencies().unwrap();
             let mut expectations = vec![
-                current_dir()
-                    .unwrap()
-                    .join("tests")
-                    .join("fixtures")
-                    .join("sample-crate")
-                    .join("src")
-                    .join("lib.rs"),
-                current_dir()
-                    .unwrap()
-                    .join("tests")
-                    .join("fixtures")
-                    .join("sample-crate")
-                    .join("src")
-                    .join("mod1.rs"),
-                current_dir()
-                    .unwrap()
-                    .join("tests")
-                    .join("fixtures")
-                    .join("sample-crate")
-                    .join("src")
-                    .join("mod2.rs"),
-                current_dir()
-                    .unwrap()
-                    .join("tests")
-                    .join("fixtures")
-                    .join("sample-crate")
-                    .join("Cargo.toml"),
-                current_dir()
-                    .unwrap()
-                    .join("tests")
-                    .join("fixtures")
-                    .join("sample-crate")
-                    .join("Cargo.lock"),
+                crate_path.join("src").join("lib.rs"),
+                crate_path.join("src").join("mod1.rs"),
+                crate_path.join("src").join("mod2.rs"),
+                crate_path.join("Cargo.toml"),
+                crate_path.join("Cargo.lock"),
+            ];
+
+            sources.sort();
+            expectations.sort();
+
+            assert_eq!(sources, expectations);
+        }
+
+        BuildStatus::NotNeeded => unreachable!(),
+    }
+}
+
+#[test]
+fn should_provide_application_crate_source_files() {
+    let _lock = ENV_MUTEX.lock();
+    let builder = Builder::new("tests/fixtures/app-crate").unwrap();
+
+    let crate_path = {
+        current_dir()
+            .unwrap()
+            .join("tests")
+            .join("fixtures")
+            .join("app-crate")
+    };
+
+    match builder.disable_colors().build().unwrap() {
+        BuildStatus::Success(output) => {
+            let mut sources = output.dependencies().unwrap();
+            let mut expectations = vec![
+                crate_path.join("src").join("main.rs"),
+                crate_path.join("src").join("mod1.rs"),
+                crate_path.join("src").join("mod2.rs"),
+                crate_path.join("Cargo.toml"),
+                crate_path.join("Cargo.lock"),
             ];
 
             sources.sort();
@@ -283,4 +329,16 @@ fn should_not_get_built_recursively() {
     }
 
     env::set_var("PTX_CRATE_BUILDING", "");
+}
+
+fn cleanup_temp_location() {
+    let crate_names = &[
+        "faulty_ptx_crate",
+        "sample_app_ptx_crate",
+        "sample_ptx_crate",
+    ];
+
+    for name in crate_names {
+        remove_dir_all(env::temp_dir().join("ptx-builder-0.5").join(name)).unwrap_or_default();
+    }
 }

@@ -68,8 +68,8 @@ impl Crate {
         let output_file_prefix = cargo_toml_name.replace("-", "_");
 
         let deps_file_prefix = match crate_type {
-            CrateType::Library => format!("lib{}", cargo_toml_name.replace("-", "_")),
-            CrateType::Application => output_file_prefix.clone(),
+            CrateType::Library => format!("lib{}", output_file_prefix),
+            CrateType::Application => cargo_toml_name.to_string(),
         };
 
         Ok(Crate {
@@ -127,7 +127,7 @@ fn should_find_app_crate_names() {
     let source = Crate::analyse("tests/fixtures/app-crate").unwrap();
 
     assert_eq!(source.get_output_file_prefix(), "sample_app_ptx_crate");
-    assert_eq!(source.get_deps_file_prefix(), "sample_app_ptx_crate");
+    assert_eq!(source.get_deps_file_prefix(), "sample-app-ptx_crate");
 }
 
 #[test]
