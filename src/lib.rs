@@ -1,5 +1,6 @@
 #![feature(tool_lints)]
 #![deny(warnings)]
+#![recursion_limit = "128"]
 
 /// Error handling.
 pub mod error;
@@ -18,7 +19,6 @@ mod target;
 
 /// Convenient re-exports of mostly used types.
 pub mod prelude {
-    pub use crate::builder::{BuildStatus, Builder, Profile};
-    pub use crate::error::Result;
+    pub use crate::builder::{BuildStatus, Builder, CrateType, Profile};
     pub use crate::reporter::{CargoAdapter, ErrorLogPrinter};
 }

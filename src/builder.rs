@@ -22,6 +22,7 @@ pub struct Builder {
 
     profile: Profile,
     colors: bool,
+    crate_type: Option<CrateType>,
 }
 
 /// Successful build output.
@@ -44,12 +45,52 @@ pub enum BuildStatus<'a> {
 
 #[derive(PartialEq, Clone)]
 /// Debug / Release profile.
+///
+/// # Usage
+/// ``` no_run
+/// use ptx_builder::prelude::*;
+/// # use ptx_builder::error::Result;
+///
+/// # fn main() -> Result<()> {
+/// Builder::new(".")?
+///     .set_profile(Profile::Debug)
+///     .build()?;
+/// # Ok(())
+/// # }
+/// ```
 pub enum Profile {
     /// Equivalent for `cargo-build` **without** `--release` flag.
     Debug,
 
     /// Equivalent for `cargo-build` **with** `--release` flag.
     Release,
+}
+
+#[derive(Clone, Copy)]
+/// Build specified crate type.
+///
+/// Mandatory for mixed crates - that have both `lib.rs` and `main.rs`,
+/// otherwise Cargo won't know which to build:
+/// ```text
+/// error: extra arguments to `rustc` can only be passed to one target, consider filtering
+/// the package by passing e.g. `--lib` or `--bin NAME` to specify a single target
+/// ```
+///
+/// # Usage
+/// ``` no_run
+/// use ptx_builder::prelude::*;
+/// # use ptx_builder::error::Result;
+///
+/// # fn main() -> Result<()> {
+/// Builder::new(".")?
+///     .set_crate_type(CrateType::Library)
+///     .build()?;
+/// # Ok(())
+/// # }
+/// ```
+pub enum CrateType {
+    Library,
+    Binary,
 }
 
 impl Builder {
@@ -80,6 +121,7 @@ impl Builder {
 
             profile: Profile::Release, // TODO: choose automatically, e.g.: `env::var("PROFILE").unwrap_or("release".to_string())`
             colors: true,
+            crate_type: None,
         })
     }
 
@@ -109,6 +151,19 @@ impl Builder {
         self
     }
 
+    /// Set crate type that needs to be built.
+    ///
+    /// Mandatory for mixed crates - that have both `lib.rs` and `main.rs`,
+    /// otherwise Cargo won't know which to build:
+    /// ```text
+    /// error: extra arguments to `rustc` can only be passed to one target, consider filtering
+    /// the package by passing e.g. `--lib` or `--bin NAME` to specify a single target
+    /// ```
+    pub fn set_crate_type(mut self, crate_type: CrateType) -> Self {
+        self.crate_type = Some(crate_type);
+        self
+    }
+
     /// Performs an actual build: runs `xargo` with proper flags and environment.
     pub fn build(&self) -> Result<BuildStatus> {
         if !Self::is_build_needed() {
@@ -129,6 +184,19 @@ impl Builder {
 
         args.push("--target");
         args.push(self.target.get_target_name());
+
+        match self.crate_type {
+            Some(CrateType::Binary) => {
+                args.push("--bin");
+                args.push(self.source_crate.get_name());
+            }
+
+            Some(CrateType::Library) => {
+                args.push("--lib");
+            }
+
+            _ => {}
+        }
 
         args.push("-v");
         args.push("--");
@@ -175,15 +243,15 @@ impl Builder {
                 Regex::new(r"-C extra-filename=([\S]+)").expect("Unable to parse regex...");
         }
 
+        let crate_name = self.source_crate.get_output_file_prefix();
+
         let build_command = {
             xargo_stderr
                 .trim_matches('\n')
                 .split('\n')
                 .find(|line| {
-                    line.contains(&format!(
-                        "--crate-name {}",
-                        self.source_crate.get_output_file_prefix()
-                    ))
+                    line.contains(&format!("--crate-name {}", crate_name))
+                        && line.contains("--crate-type dylib")
                 })
                 .map(|line| BuildCommand::Realtime(line.to_string()))
                 .or_else(|| Self::load_cached_build_command(&output_path))
@@ -197,8 +265,6 @@ impl Builder {
         if let BuildCommand::Realtime(ref command) = build_command {
             Self::store_cached_build_command(&output_path, &command)?;
         }
-
-        println!("{}", build_command.deref());
 
         let file_suffix = match SUFFIX_REGEX.captures(&build_command) {
             Some(caps) => caps[1].to_string(),
@@ -329,7 +395,9 @@ impl<'a> BuildOutput<'a> {
             .join(self.builder.profile.to_string())
             .join(format!(
                 "{}.d",
-                self.builder.source_crate.get_deps_file_prefix()
+                self.builder
+                    .source_crate
+                    .get_deps_file_prefix(self.builder.crate_type)?
             ));
 
         let mut crate_deps_reader = BufReader::new(File::open(crate_deps_path)?);

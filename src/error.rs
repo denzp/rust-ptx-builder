@@ -32,6 +32,14 @@ error_chain! {
             display("{}\n{}", "Unable to build a PTX crate!".bold(), diagnostics.join("\n")),
         }
 
+        InvalidCrateType(crate_type: String) {
+            display("{}: the crate cannot be build as '{}'", "Impossible CrateType".bold(), crate_type),
+        }
+
+        MissingCrateType {
+            display("{}: it's mandatory for mixed-type crates", "Missing CrateType".bold()),
+        }
+
         InternalError(reason: String) {
             display("{}: {}", "Internal error".bold(), reason),
         }

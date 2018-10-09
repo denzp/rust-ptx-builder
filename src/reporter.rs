@@ -86,6 +86,7 @@ impl CargoAdapter {
 /// ```no_run
 /// use std::process::exit;
 /// use ptx_builder::prelude::*;
+/// # use ptx_builder::error::Result;
 ///
 /// fn main() {
 ///     if let Err(error) = build() {

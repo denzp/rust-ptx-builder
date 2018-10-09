@@ -10,8 +10,8 @@ use std::fs::{remove_dir_all, File};
 use std::io::prelude::*;
 use std::path::PathBuf;
 
-use ptx_builder::builder::{BuildStatus, Builder, Profile};
 use ptx_builder::error::*;
+use ptx_builder::prelude::*;
 
 lazy_static! {
     static ref ENV_MUTEX: Mutex<()> = Mutex::new(());
@@ -79,6 +79,80 @@ fn should_build_application_crate() {
     match builder.disable_colors().build().unwrap() {
         BuildStatus::Success(output) => {
             let mut assembly_contents = String::new();
+
+            File::open(output.get_assembly_path())
+                .unwrap()
+                .read_to_string(&mut assembly_contents)
+                .unwrap();
+
+            assert!(
+                output
+                    .get_assembly_path()
+                    .to_string_lossy()
+                    .contains("release")
+            );
+
+            assert!(assembly_contents.contains(".visible .entry the_kernel("));
+        }
+
+        BuildStatus::NotNeeded => unreachable!(),
+    }
+}
+
+#[test]
+fn should_build_mixed_crate_lib() {
+    cleanup_temp_location();
+
+    let _lock = ENV_MUTEX.lock();
+    let builder = Builder::new("tests/fixtures/mixed-crate").unwrap();
+
+    match builder
+        .set_crate_type(CrateType::Library)
+        .disable_colors()
+        .build()
+        .unwrap()
+    {
+        BuildStatus::Success(output) => {
+            let mut assembly_contents = String::new();
+
+            println!("{}", output.get_assembly_path().display());
+
+            File::open(output.get_assembly_path())
+                .unwrap()
+                .read_to_string(&mut assembly_contents)
+                .unwrap();
+
+            assert!(
+                output
+                    .get_assembly_path()
+                    .to_string_lossy()
+                    .contains("release")
+            );
+
+            assert!(assembly_contents.contains(".visible .entry the_kernel("));
+        }
+
+        BuildStatus::NotNeeded => unreachable!(),
+    }
+}
+
+#[test]
+fn should_build_mixed_crate_bin() {
+    cleanup_temp_location();
+
+    let _lock = ENV_MUTEX.lock();
+    let builder = Builder::new("tests/fixtures/mixed-crate").unwrap();
+
+    match builder
+        .set_crate_type(CrateType::Binary)
+        .disable_colors()
+        .build()
+        .unwrap()
+    {
+        BuildStatus::Success(output) => {
+            let mut assembly_contents = String::new();
+
+            println!("{}", output.get_assembly_path().display());
 
             File::open(output.get_assembly_path())
                 .unwrap()
@@ -336,6 +410,7 @@ fn cleanup_temp_location() {
         "faulty_ptx_crate",
         "sample_app_ptx_crate",
         "sample_ptx_crate",
+        "mixed_crate",
     ];
 
     for name in crate_names {
