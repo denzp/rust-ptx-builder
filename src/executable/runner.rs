@@ -1,35 +1,20 @@
-use regex::Regex;
-use semver::{Version, VersionReq};
 use std::ffi::OsStr;
 use std::path::Path;
 use std::process::Command;
 
-use error::*;
+use error_chain::bail;
+use regex::Regex;
+use semver::Version;
 
-pub trait Executable {
-    fn get_name(&self) -> String;
-    fn get_verification_hint(&self) -> String;
-
-    fn get_version_hint(&self) -> String;
-    fn get_required_version(&self) -> Option<VersionReq>;
-
-    fn get_current_version(&self) -> Result<Version>
-    where
-        Self: Sized,
-    {
-        parse_executable_version(self)
-    }
-}
-
-pub struct Cargo;
-pub struct Xargo;
-pub struct Linker;
+use super::Executable;
+use crate::error::*;
 
 pub struct ExecutableRunner<Ex: Executable> {
     command: Command,
     executable: Ex,
 }
 
+#[derive(Debug)]
 pub struct Output {
     pub stdout: String,
     pub stderr: String,
@@ -86,14 +71,14 @@ impl<Ex: Executable> ExecutableRunner<Ex> {
             stderr: String::from_utf8(raw_output.stderr)?,
         };
 
-        match raw_output.status.success() {
-            true => Ok(output),
-
-            false => bail!(ErrorKind::CommandFailed(
+        if raw_output.status.success() {
+            Ok(output)
+        } else {
+            bail!(ErrorKind::CommandFailed(
                 self.executable.get_name(),
                 raw_output.status.code().unwrap_or(-1),
                 output.stderr,
-            )),
+            ))
         }
     }
 
@@ -116,71 +101,7 @@ impl<Ex: Executable> ExecutableRunner<Ex> {
     }
 }
 
-impl Executable for Cargo {
-    fn get_name(&self) -> String {
-        String::from("cargo")
-    }
-
-    fn get_verification_hint(&self) -> String {
-        String::from("Please make sure you have it installed and in PATH")
-    }
-
-    fn get_version_hint(&self) -> String {
-        String::from("Please update Rust and Cargo to latest nightly versions")
-    }
-
-    fn get_required_version(&self) -> Option<VersionReq> {
-        Some(VersionReq::parse(">= 1.30.0-nightly").unwrap())
-    }
-
-    fn get_current_version(&self) -> Result<Version> {
-        // Omit Rust channel name because it's not really semver-correct
-        // https://github.com/steveklabnik/semver/issues/105
-
-        parse_executable_version(self).map(|mut version| {
-            version.pre = vec![];
-            version
-        })
-    }
-}
-
-impl Executable for Linker {
-    fn get_name(&self) -> String {
-        String::from("ptx-linker")
-    }
-
-    fn get_verification_hint(&self) -> String {
-        String::from("You can install it with: 'cargo install ptx-linker'")
-    }
-
-    fn get_version_hint(&self) -> String {
-        String::from("You can update it with: 'cargo install -f ptx-linker'")
-    }
-
-    fn get_required_version(&self) -> Option<VersionReq> {
-        Some(VersionReq::parse(">= 0.7.0").unwrap())
-    }
-}
-
-impl Executable for Xargo {
-    fn get_name(&self) -> String {
-        String::from("xargo")
-    }
-
-    fn get_verification_hint(&self) -> String {
-        String::from("You can install it with: 'cargo install xargo'")
-    }
-
-    fn get_version_hint(&self) -> String {
-        String::from("You can update it with: 'cargo install -f xargo'")
-    }
-
-    fn get_required_version(&self) -> Option<VersionReq> {
-        Some(VersionReq::parse(">= 0.3.12").unwrap())
-    }
-}
-
-fn parse_executable_version(executable: &Executable) -> Result<Version> {
+pub(crate) fn parse_executable_version<E: Executable>(executable: &E) -> Result<Version> {
     let mut command = Command::new(executable.get_name());
 
     command.args(&["-V"]);

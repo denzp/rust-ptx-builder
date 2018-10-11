@@ -1,8 +1,13 @@
-#![feature(abi_ptx, core_intrinsics)]
+#![feature(abi_ptx)]
 #![no_std]
 
 mod mod1;
 mod mod2;
+
+#[cfg(not(target_os = "cuda"))]
+fn main() {
+    println!("Hello, world!");
+}
 
 #[no_mangle]
 pub unsafe extern "ptx-kernel" fn the_kernel(x: *const f64, y: *mut f64, a: f64) {
@@ -10,7 +15,6 @@ pub unsafe extern "ptx-kernel" fn the_kernel(x: *const f64, y: *mut f64, a: f64)
 }
 
 #[panic_handler]
-unsafe fn breakpoint_panic_handler(_: &::core::panic::PanicInfo) -> ! {
-    core::intrinsics::breakpoint();
-    core::hint::unreachable_unchecked();
+fn dummy_panic_handler(_info: &::core::panic::PanicInfo) -> ! {
+    loop {}
 }

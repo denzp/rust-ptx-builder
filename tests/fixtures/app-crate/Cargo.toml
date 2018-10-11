@@ -1,5 +1,5 @@
 [package]
-name = "sample-ptx_crate"
+name = "sample-app-ptx_crate"
 version = "0.1.0"
 authors = ["Denys Zariaiev <denys.zariaiev@gmail.com>"]
 

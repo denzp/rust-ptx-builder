@@ -1,8 +1,9 @@
 [package]
 name = "ptx-builder"
-version = "0.5.0-alpha"
+version = "0.5.0"
 authors = ["Denys Zariaiev <denys.zariaiev@gmail.com>"]
 license = "MIT"
+edition = "2018"
 
 readme = "README.md"
 description = "NVPTX build helper"
@@ -20,12 +21,12 @@ colored = "1.6"
 toml = "0.4"
 semver = "0.9"
 regex = "0.2"
+lazy_static = "1.0"
 
 [dev-dependencies]
-lazy_static = "1.0"
 antidote = "1.0"
 
 [badges]
 appveyor = { repository = "denzp/rust-ptx-builder", branch = "master", service = "github" }
 travis-ci = { repository = "denzp/rust-ptx-builder", branch = "master" }
-maintenance = { status = "passively-maintained" }
+maintenance = { status = "experimental" }

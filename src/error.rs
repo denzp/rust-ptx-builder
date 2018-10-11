@@ -1,6 +1,8 @@
-use colored::*;
-use semver::{Version, VersionReq};
 use std::path::PathBuf;
+
+use colored::*;
+use error_chain::*;
+use semver::{Version, VersionReq};
 
 error_chain! {
     errors {
@@ -23,11 +25,19 @@ error_chain! {
         }
 
         InvalidCratePath(path: PathBuf) {
-            display("{}: {}", "Invalid device crate path".bold(), path.to_str().unwrap()),
+            display("{}: {}", "Invalid device crate path".bold(), path.display()),
         }
 
         BuildFailed(diagnostics: Vec<String>) {
             display("{}\n{}", "Unable to build a PTX crate!".bold(), diagnostics.join("\n")),
+        }
+
+        InvalidCrateType(crate_type: String) {
+            display("{}: the crate cannot be build as '{}'", "Impossible CrateType".bold(), crate_type),
+        }
+
+        MissingCrateType {
+            display("{}: it's mandatory for mixed-type crates", "Missing CrateType".bold()),
         }
 
         InternalError(reason: String) {

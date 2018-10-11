@@ -2,6 +2,42 @@
 [![Build Status](https://travis-ci.org/denzp/rust-ptx-builder.svg?branch=master)](https://travis-ci.org/denzp/rust-ptx-builder)
 [![Build status](https://ci.appveyor.com/api/projects/status/5m0du8548xh1fjph/branch/master?svg=true)](https://ci.appveyor.com/project/denzp/rust-ptx-builder/branch/master)
 [![Current Version](https://img.shields.io/crates/v/ptx-builder.svg)](https://crates.io/crates/ptx-builder)
+[![Docs](https://docs.rs/ptx-builder/badge.svg)](https://docs.rs/ptx-builder)
+
+## New Release: 0.5 🎉
+### Say goodbye to proxy crate approach.
+This allows us to use single-source CUDA in **binary**-only crates (ones without `lib.rs`).
+New approach might seem a bit hacky with overriding Cargo behavior and enforcing `--crate-type dylib`, but in the end, development workflow became much more convinient.
+
+### Development breaking changes
+The crate does not provide a default `panic_handler` anymore.
+From now on, it either up to a user, or other crates (e.g. coming soon [`ptx-support` crate](https://github.com/denzp/rust-ptx-support)).
+
+Next workaround should work in common cases,
+although it doesn't provide any panic details in runtime:
+``` rust
+#![feature(core_intrinsics)]
+
+#[panic_handler]
+unsafe fn breakpoint_panic_handler(_: &::core::panic::PanicInfo) -> ! {
+    core::intrinsics::breakpoint();
+    core::hint::unreachable_unchecked();
+}
+```
+
+### API Breaking Changes - less boilerplate code
+`build.rs` script was never so compact and clear before:
+``` rust
+use ptx_builder::error::Result;
+use ptx_builder::prelude::*;
+
+fn main() -> Result<()> {
+    CargoAdapter::with_env_var("KERNEL_PTX_PATH").build(Builder::new(".")?);
+}
+```
+
+### Documentation improvements
+This release comes with a significant documentation improvement! Check on [docs.rs](https://docs.rs/ptx-builder) :)
 
 ## Purpose
 The library should facilitate CUDA development with Rust.
@@ -26,56 +62,29 @@ cargo install xargo
 cargo install ptx-linker
 ```
 
+### Windows users!
+Unfortunately, due to [rustc-llvm-proxy#1](/denzp/rustc-llvm-proxy/issues/1) **MSVS** targets are not supported yet.
+
+You might face similar errors:
+```
+Unable to find symbol 'LLVMContextCreate' in the LLVM shared lib
+```
+
+For now the only solution is to use **GNU** targets.
+
 ## Usage
 First, you need to specify a build script in host crate's `Cargo.toml` and declare the library as a *build-dependency*:
 ``` toml
-[package]
-build = "build.rs"
-
 [build-dependencies]
-ptx-builder = "0.3"
+ptx-builder = "0.5"
 ```
 
 Then, typical `build.rs` might look like:
 ``` rust
-extern crate ptx_builder;
-
-use std::process::exit;
+use ptx_builder::error::Result;
 use ptx_builder::prelude::*;
 
-fn main() {
-    if let Err(error) = build() {
-        eprintln!("{}", BuildReporter::report(error));
-        exit(1);
-    }
+fn main() -> Result<()> {
+    CargoAdapter::with_env_var("KERNEL_PTX_PATH").build(Builder::new(".")?);
 }
-
-fn build() -> Result<()> {
-    let status = Builder::new(".")?.build()?;
-
-    match status {
-        BuildStatus::Success(output) => {
-            // Provide the PTX Assembly location via env variable
-            println!(
-                "cargo:rustc-env=KERNEL_PTX_PATH={}",
-                output.get_assembly_path().to_str().unwrap()
-            );
-
-            // Observe changes in kernel sources
-            for path in output.source_files()? {
-                println!("cargo:rerun-if-changed={}", path.to_str().unwrap());
-            }
-        }
-
-        BuildStatus::NotNeeded => {
-            println!("cargo:rustc-env=KERNEL_PTX_PATH=/dev/null");
-        }
-    };
-
-    Ok(())
-}
-
 ```
-
-## Breaking changes in 0.5
-TBD...

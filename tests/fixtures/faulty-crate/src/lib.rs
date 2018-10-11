@@ -1,4 +1,4 @@
-#![feature(abi_ptx)]
+#![feature(abi_ptx, core_intrinsics)]
 #![no_std]
 
 #[no_mangle]
@@ -7,6 +7,7 @@ pub unsafe extern "ptx-kernel" fn the_kernel(x: *const f64, y: *mut f64, a: f64)
 }
 
 #[panic_handler]
-fn dummy_panic_handler(_info: &::core::panic::PanicInfo) -> ! {
-    loop {}
+unsafe fn breakpoint_panic_handler(_: &::core::panic::PanicInfo) -> ! {
+    core::intrinsics::breakpoint();
+    core::hint::unreachable_unchecked();
 }

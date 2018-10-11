@@ -1,24 +1,60 @@
+#![feature(tool_lints)]
 #![deny(warnings)]
+#![recursion_limit = "128"]
 
-#[macro_use]
-extern crate error_chain;
+//! `build.rs` helper crate for your CUDA experiments.
+//!
+//! It helps to automatically build device crate in both *single-source* and *separated-source* projects.
+//!
+//! Features the crate provide:
+//! * Automatically notify Cargo about device crate sources, so it can reuild on changes,
+//! * Provide output PTX assembly path to Rust via environment variable,
+//! * Rich reporting of device crate errors,
+//! * Hints and troubleshooting for missing tools.
+//!
+//! # Usage
+//! Simply add the crate as `build-dependency`:
+//! ```text
+//! [build-dependencies]
+//! ptx-builder = "0.5"
+//! ```
+//!
+//! And start using it in `build.rs` script:
+//! ```no_run
+//! use ptx_builder::error::Result;
+//! use ptx_builder::prelude::*;
+//!
+//! fn main() -> Result<()> {
+//!     CargoAdapter::with_env_var("KERNEL_PTX_PATH").build(Builder::new(".")?);
+//! }
+//! ```
+//!
+//! Now, on the host-side, the PTX assembly can be loaded and used with your favorite CUDA driver crate:
+//! ```ignore
+//! use std::ffi::CString;
+//!
+//! let ptx = CString::new(include_str!(env!("KERNEL_PTX_PATH")))?;
+//!
+//! // use the assembly contents ...
+//! ```
 
-extern crate colored;
-extern crate regex;
-extern crate semver;
-extern crate toml;
-
+/// Error handling.
 pub mod error;
+
+/// External executables that are needed to build CUDA crates.
 pub mod executable;
 
+/// Build helpers.
 pub mod builder;
-pub mod project;
-pub mod proxy;
-pub mod reporter;
-pub mod target;
 
+/// Build reporting helpers.
+pub mod reporter;
+
+mod source;
+mod target;
+
+/// Convenient re-exports of mostly used types.
 pub mod prelude {
-    pub use builder::{BuildStatus, Builder};
-    pub use error::Result;
-    pub use reporter::BuildReporter;
+    pub use crate::builder::{BuildStatus, Builder, CrateType, Profile};
+    pub use crate::reporter::{CargoAdapter, ErrorLogPrinter};
 }

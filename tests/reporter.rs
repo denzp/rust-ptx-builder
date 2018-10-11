@@ -2,7 +2,7 @@ extern crate colored;
 extern crate ptx_builder;
 
 use ptx_builder::error::*;
-use ptx_builder::reporter::BuildReporter;
+use ptx_builder::reporter::ErrorLogPrinter;
 
 #[test]
 fn should_report_in_cargo_style() {
@@ -10,7 +10,8 @@ fn should_report_in_cargo_style() {
         String::from("some_name"),
         0,
         String::from("some\nmultiline\noutput"),
-    ).into());
+    )
+    .into());
 
     let chained_error = original_error.chain_err(|| {
         ErrorKind::BuildFailed(vec![
@@ -22,7 +23,7 @@ fn should_report_in_cargo_style() {
         ])
     });
 
-    let mut reporter = BuildReporter::report(chained_error.unwrap_err());
+    let mut reporter = ErrorLogPrinter::print(chained_error.unwrap_err());
 
     assert_eq!(
         reporter.disable_colors().to_string(),
