@@ -371,6 +371,7 @@ impl<'a> BuildOutput<'a> {
 
         deps_contents = deps_contents
             .chars()
+            .skip(3) // workaround for Windows paths starts wuth "[A-Z]:\"
             .skip_while(|c| *c != ':')
             .skip(1)
             .collect::<String>();

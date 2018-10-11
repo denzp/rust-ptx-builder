@@ -262,11 +262,7 @@ fn should_report_about_build_failure() {
 
     let lib_path = PathBuf::from("src").join("lib.rs");
 
-    let mut crate_absoulte_path_str = crate_absoulte_path.display().to_string();
-
-    if cfg!(windows) {
-        crate_absoulte_path_str = format!("/{}", crate_absoulte_path_str.replace("\\", "/"));
-    }
+    let crate_absoulte_path_str = crate_absoulte_path.display().to_string();
 
     match output {
         Err(Error(ErrorKind::BuildFailed(diagnostics), _)) => {
@@ -308,7 +304,6 @@ fn should_report_about_build_failure() {
 #[test]
 fn should_provide_crate_source_files() {
     let _lock = ENV_MUTEX.lock();
-    let builder = Builder::new("tests/fixtures/sample-crate").unwrap();
 
     let crate_path = {
         current_dir()
@@ -317,6 +312,8 @@ fn should_provide_crate_source_files() {
             .join("fixtures")
             .join("sample-crate")
     };
+
+    let builder = Builder::new(&crate_path.display().to_string()).unwrap();
 
     match builder.disable_colors().build().unwrap() {
         BuildStatus::Success(output) => {
@@ -342,7 +339,6 @@ fn should_provide_crate_source_files() {
 #[test]
 fn should_provide_application_crate_source_files() {
     let _lock = ENV_MUTEX.lock();
-    let builder = Builder::new("tests/fixtures/app-crate").unwrap();
 
     let crate_path = {
         current_dir()
@@ -351,6 +347,8 @@ fn should_provide_application_crate_source_files() {
             .join("fixtures")
             .join("app-crate")
     };
+
+    let builder = Builder::new(&crate_path.display().to_string()).unwrap();
 
     match builder.disable_colors().build().unwrap() {
         BuildStatus::Success(output) => {
