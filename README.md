@@ -9,6 +9,22 @@
 This allows us to use single-source CUDA in **binary**-only crates (ones without `lib.rs`).
 New approach might seem a bit hacky with overriding Cargo behavior and enforcing `--crate-type dylib`, but in the end, development workflow became much more convinient.
 
+### Development breaking changes
+The crate does not provide a default `panic_handler` anymore.
+From now on, it either up to a user, or other crates (e.g. coming soon [`ptx-support` crate](https://github.com/denzp/rust-ptx-support)).
+
+Next workaround should work in common cases,
+although it doesn't provide any panic details in runtime:
+``` rust
+#![feature(core_intrinsics)]
+
+#[panic_handler]
+unsafe fn breakpoint_panic_handler(_: &::core::panic::PanicInfo) -> ! {
+    core::intrinsics::breakpoint();
+    core::hint::unreachable_unchecked();
+}
+```
+
 ### API Breaking Changes - less boilerplate code
 `build.rs` script was never so compact and clear before:
 ``` rust
