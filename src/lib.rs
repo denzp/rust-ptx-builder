@@ -2,6 +2,42 @@
 #![deny(warnings)]
 #![recursion_limit = "128"]
 
+//! `build.rs` helper crate for your CUDA experiments.
+//!
+//! It helps to automatically build device crate in both *single-source* and *separated-source* projects.
+//!
+//! Features the crate provide:
+//! * Automatically notify Cargo about device crate sources, so it can reuild on changes,
+//! * Provide output PTX assembly path to Rust via environment variable,
+//! * Rich reporting of device crate errors,
+//! * Hints and troubleshooting for missing tools.
+//!
+//! # Usage
+//! Simply add the crate as `build-dependency`:
+//! ```text
+//! [build-dependencies]
+//! ptx-builder = "0.5"
+//! ```
+//!
+//! And start using it in `build.rs` script:
+//! ```no_run
+//! use ptx_builder::error::Result;
+//! use ptx_builder::prelude::*;
+//!
+//! fn main() -> Result<()> {
+//!     CargoAdapter::with_env_var("KERNEL_PTX_PATH").build(Builder::new(".")?);
+//! }
+//! ```
+//!
+//! Now, on the host-side, the PTX assembly can be loaded and used with your favorite CUDA driver crate:
+//! ```ignore
+//! use std::ffi::CString;
+//!
+//! let ptx = CString::new(include_str!(env!("KERNEL_PTX_PATH")))?;
+//!
+//! // use the assembly contents ...
+//! ```
+
 /// Error handling.
 pub mod error;
 

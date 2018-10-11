@@ -19,7 +19,7 @@ pub struct TargetInfo {
 impl TargetInfo {
     /// Prepares temporary location of JSON definition for default target.
     pub fn new() -> Result<Self> {
-        let output_dir = env::temp_dir().join("ptx-builder-targets");
+        let output_dir = env::temp_dir().join("ptx-builder-targets-0.5");
 
         create_dir_all(output_dir.as_path())
             .chain_err(|| "Unable to create target definitions directory")?;
@@ -64,7 +64,7 @@ fn should_provide_definitions_path() {
 
     assert_eq!(
         target.get_path(),
-        env::temp_dir().join("ptx-builder-targets")
+        env::temp_dir().join("ptx-builder-targets-0.5")
     );
 }
 
@@ -74,7 +74,7 @@ fn should_store_json_definition() {
 
     TargetInfo::new().unwrap();
     let path = env::temp_dir()
-        .join("ptx-builder-targets")
+        .join("ptx-builder-targets-0.5")
         .join("nvptx64-nvidia-cuda.json");
 
     let mut contents = String::new();

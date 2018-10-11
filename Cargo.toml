@@ -29,4 +29,4 @@ antidote = "1.0"
 [badges]
 appveyor = { repository = "denzp/rust-ptx-builder", branch = "master", service = "github" }
 travis-ci = { repository = "denzp/rust-ptx-builder", branch = "master" }
-maintenance = { status = "passively-maintained" }
+maintenance = { status = "experimental" }

@@ -17,7 +17,7 @@ use crate::error::*;
 /// use ptx_builder::prelude::*;
 ///
 /// fn main() -> Result<()> {
-///     CargoAdapter::new("PTX_PATH").build(Builder::new(".")?);
+///     CargoAdapter::with_env_var("PTX_PATH").build(Builder::new(".")?);
 /// }
 /// ```
 pub struct CargoAdapter {
@@ -32,11 +32,9 @@ impl CargoAdapter {
     /// ```ignore
     /// use std::ffi::CString;
     ///
-    /// # fn main() -> Result<()> {
     /// let ptx = CString::new(include_str!(env!("PTX_PATH")))?;
-    /// # }
     /// ```
-    pub fn new<S: AsRef<str>>(env_name: S) -> Self {
+    pub fn with_env_var<S: AsRef<str>>(env_name: S) -> Self {
         CargoAdapter {
             env_name: env_name.as_ref().to_string(),
         }
