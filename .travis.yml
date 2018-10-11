@@ -6,12 +6,19 @@ rust:
 
 before_script:
   - export PATH=$HOME/.cargo/bin:$PATH
-  - cargo install -f xargo
-  - cargo install -f ptx-linker
+  - cargo install xargo || echo "xargo already installed"
+  - cargo install ptx-linker || echo "ptx-linker already installed"
+  - cargo install cargo-update || echo "cargo-update already installed"
+  - cargo install cargo-travis || echo "cargo-travis already installed"
+  - cargo install-update -a # update outdated cached binaries
   - rustup component add rust-src
 
 script:
   - cargo test
+  - cargo doc
+
+after_success:
+  - cargo doc-upload
 
 branches:
   only:
