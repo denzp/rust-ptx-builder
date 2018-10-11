@@ -2,10 +2,10 @@
 [![Build Status](https://travis-ci.org/denzp/rust-ptx-builder.svg?branch=master)](https://travis-ci.org/denzp/rust-ptx-builder)
 [![Build status](https://ci.appveyor.com/api/projects/status/5m0du8548xh1fjph/branch/master?svg=true)](https://ci.appveyor.com/project/denzp/rust-ptx-builder/branch/master)
 [![Current Version](https://img.shields.io/crates/v/ptx-builder.svg)](https://crates.io/crates/ptx-builder)
-[![Docs](https://docs.rs/ptx-builder/badge.svg)](https://docs.rs/ptx-builder)
+[![Docs](https://img.shields.io/badge/docs-master-blue.svg)](https://denzp.github.io/rust-ptx-builder/master/ptx_builder/index.html)
 
 ## New Release: 0.5 🎉
-### Say goodbye to proxy crate approach.
+### Say goodbye to proxy crate approach
 This allows us to use single-source CUDA in **binary**-only crates (ones without `lib.rs`).
 New approach might seem a bit hacky with overriding Cargo behavior and enforcing `--crate-type dylib`, but in the end, development workflow became much more convinient.
 
@@ -37,7 +37,7 @@ fn main() -> Result<()> {
 ```
 
 ### Documentation improvements
-This release comes with a significant documentation improvement! Check on [docs.rs](https://docs.rs/ptx-builder) :)
+This release comes with a significant documentation improvement! [Check it out](https://denzp.github.io/rust-ptx-builder/master/ptx_builder/index.html) :)
 
 ## Purpose
 The library should facilitate CUDA development with Rust.
