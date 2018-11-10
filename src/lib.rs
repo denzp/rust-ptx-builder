@@ -1,4 +1,3 @@
-#![feature(tool_lints)]
 #![deny(warnings)]
 #![recursion_limit = "128"]
 
