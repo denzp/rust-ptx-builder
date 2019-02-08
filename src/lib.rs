@@ -1,4 +1,5 @@
 #![deny(warnings)]
+#![allow(deprecated)]
 #![recursion_limit = "128"]
 
 //! `build.rs` helper crate for your CUDA experiments.
@@ -24,7 +25,8 @@
 //! use ptx_builder::prelude::*;
 //!
 //! fn main() -> Result<()> {
-//!     CargoAdapter::with_env_var("KERNEL_PTX_PATH").build(Builder::new(".")?);
+//!     let builder = Builder::new(".")?;
+//!     CargoAdapter::with_env_var("KERNEL_PTX_PATH").build(builder);
 //! }
 //! ```
 //!
@@ -50,7 +52,6 @@ pub mod builder;
 pub mod reporter;
 
 mod source;
-mod target;
 
 /// Convenient re-exports of mostly used types.
 pub mod prelude {
