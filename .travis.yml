@@ -20,7 +20,6 @@ matrix:
     - name: "Run tests"
       install:
         - cargo install -f ptx-linker
-        - cargo install -f rustc-override-crate-type
         - rustup target add nvptx64-nvidia-cuda
       script:
         - cargo test --verbose
