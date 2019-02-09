@@ -265,11 +265,9 @@ fn should_check_validity_of_crate_path() {
 fn should_provide_output_path() {
     let source_crate = Crate::analyse("tests/fixtures/sample-crate").unwrap();
 
-    assert!(
-        source_crate.get_output_path().unwrap().starts_with(
-            env::temp_dir()
-                .join("ptx-builder-0.5")
-                .join("sample_ptx_crate")
-        )
-    );
+    assert!(source_crate.get_output_path().unwrap().starts_with(
+        env::temp_dir()
+            .join("ptx-builder-0.5")
+            .join("sample_ptx_crate")
+    ));
 }
