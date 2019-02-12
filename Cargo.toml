@@ -17,7 +17,7 @@ exclude = [
 ]
 
 [dependencies]
-error-chain = "0.12"
+failure = "0.1"
 colored = "1.6"
 toml = "0.4"
 semver = "0.9"

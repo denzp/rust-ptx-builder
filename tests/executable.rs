@@ -1,6 +1,3 @@
-extern crate ptx_builder;
-extern crate semver;
-
 use semver::VersionReq;
 
 use ptx_builder::error::*;
@@ -27,16 +24,19 @@ mod cargo {
             .with_cwd("tests/fixtures/sample-crate")
             .run();
 
-        match output {
-            Err(Error(ErrorKind::CommandFailed(command, code, stderr), _)) => {
+        match output.unwrap_err().kind() {
+            BuildErrorKind::CommandFailed {
+                command,
+                code,
+                stderr,
+            } => {
                 assert_eq!(command, String::from("cargo"));
                 assert_eq!(code, 1);
 
                 assert!(stderr.contains("argument '--unknown-flag'"));
             }
 
-            Ok(_) => unreachable!("it should fail"),
-            Err(_) => unreachable!("it should fail with proper error"),
+            _ => unreachable!("it should fail with proper error"),
         }
     }
 }
@@ -68,14 +68,13 @@ mod non_existing_command {
     fn should_not_provide_output() {
         let output = ExecutableRunner::new(NonExistingCommand).run();
 
-        match output {
-            Err(Error(ErrorKind::CommandNotFound(command, hint), _)) => {
+        match output.unwrap_err().kind() {
+            BuildErrorKind::CommandNotFound { command, hint } => {
                 assert_eq!(command, String::from("almost-unique-name"));
                 assert_eq!(hint, String::from("Some useful hint"));
             }
 
-            Ok(_) => unreachable!("it should fail"),
-            Err(_) => unreachable!("it should fail with proper error"),
+            _ => unreachable!("it should fail with proper error"),
         }
     }
 }
@@ -107,15 +106,19 @@ mod unrealistic_version_requirement {
     fn should_not_provide_output() {
         let output = ExecutableRunner::new(UnrealisticCommand).run();
 
-        match output {
-            Err(Error(ErrorKind::CommandVersionNotFulfilled(command, _, required, hint), _)) => {
+        match output.unwrap_err().kind() {
+            BuildErrorKind::CommandVersionNotFulfilled {
+                command,
+                required,
+                hint,
+                ..
+            } => {
                 assert_eq!(command, String::from("cargo"));
                 assert_eq!(required, VersionReq::parse("> 100.0.0").unwrap());
                 assert_eq!(hint, String::from("Some useful hint about version"));
             }
 
-            Ok(_) => unreachable!("it should fail"),
-            Err(_) => unreachable!("it should fail with proper error"),
+            _ => unreachable!("it should fail with proper error"),
         }
     }
 }

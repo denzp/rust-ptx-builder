@@ -1,14 +1,11 @@
-#[macro_use]
-extern crate lazy_static;
-extern crate antidote;
-extern crate ptx_builder;
-
-use antidote::Mutex;
 use std::env;
 use std::env::current_dir;
 use std::fs::{remove_dir_all, File};
 use std::io::prelude::*;
 use std::path::PathBuf;
+
+use antidote::Mutex;
+use lazy_static::*;
 
 use ptx_builder::error::*;
 use ptx_builder::prelude::*;
@@ -250,8 +247,8 @@ fn should_report_about_build_failure() {
 
     let crate_absoulte_path_str = crate_absoulte_path.display().to_string();
 
-    match output {
-        Err(Error(ErrorKind::BuildFailed(diagnostics), _)) => {
+    match output.unwrap_err().kind() {
+        BuildErrorKind::BuildFailed(diagnostics) => {
             assert_eq!(
                 diagnostics
                     .into_iter()
@@ -282,8 +279,7 @@ fn should_report_about_build_failure() {
             );
         }
 
-        Ok(_) => unreachable!("it should fail"),
-        Err(_) => unreachable!("it should fail with proper error"),
+        _ => unreachable!("it should fail with proper error"),
     }
 }
 

@@ -1,6 +1,5 @@
 #![deny(warnings)]
-#![allow(deprecated)]
-#![recursion_limit = "128"]
+#![warn(clippy::all)]
 
 //! `build.rs` helper crate for your CUDA experiments.
 //!
@@ -40,6 +39,7 @@
 //! ```
 
 /// Error handling.
+#[macro_use]
 pub mod error;
 
 /// External executables that are needed to build CUDA crates.

@@ -2,7 +2,7 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::process::Command;
 
-use error_chain::bail;
+use failure::ResultExt;
 use regex::Regex;
 use semver::Version;
 
@@ -58,8 +58,8 @@ impl<Ex: Executable> ExecutableRunner<Ex> {
         self.check_version()?;
 
         let raw_output = {
-            self.command.output().chain_err(|| {
-                ErrorKind::InternalError(format!(
+            self.command.output().with_context(|_| {
+                BuildErrorKind::InternalError(format!(
                     "Unable to execute command '{}'",
                     self.executable.get_name()
                 ))
@@ -67,18 +67,18 @@ impl<Ex: Executable> ExecutableRunner<Ex> {
         };
 
         let output = Output {
-            stdout: String::from_utf8(raw_output.stdout)?,
-            stderr: String::from_utf8(raw_output.stderr)?,
+            stdout: String::from_utf8(raw_output.stdout).context(BuildErrorKind::OtherError)?,
+            stderr: String::from_utf8(raw_output.stderr).context(BuildErrorKind::OtherError)?,
         };
 
         if raw_output.status.success() {
             Ok(output)
         } else {
-            bail!(ErrorKind::CommandFailed(
-                self.executable.get_name(),
-                raw_output.status.code().unwrap_or(-1),
-                output.stderr,
-            ))
+            Err(Error::from(BuildErrorKind::CommandFailed {
+                command: self.executable.get_name(),
+                code: raw_output.status.code().unwrap_or(-1),
+                stderr: output.stderr,
+            }))
         }
     }
 
@@ -88,12 +88,12 @@ impl<Ex: Executable> ExecutableRunner<Ex> {
 
         match required {
             Some(ref required) if !required.matches(&current) => {
-                bail!(ErrorKind::CommandVersionNotFulfilled(
-                    self.executable.get_name(),
+                Err(Error::from(BuildErrorKind::CommandVersionNotFulfilled {
+                    command: self.executable.get_name(),
                     current,
-                    required.clone(),
-                    self.executable.get_version_hint()
-                ));
+                    required: required.clone(),
+                    hint: self.executable.get_version_hint(),
+                }))
             }
 
             _ => Ok(()),
@@ -107,31 +107,35 @@ pub(crate) fn parse_executable_version<E: Executable>(executable: &E) -> Result<
     command.args(&["-V"]);
 
     let raw_output = {
-        command.output().chain_err(|| {
-            ErrorKind::CommandNotFound(executable.get_name(), executable.get_verification_hint())
-        })?
+        command
+            .output()
+            .with_context(|_| BuildErrorKind::CommandNotFound {
+                command: executable.get_name(),
+                hint: executable.get_verification_hint(),
+            })?
     };
 
     let output = Output {
-        stdout: String::from_utf8(raw_output.stdout)?,
-        stderr: String::from_utf8(raw_output.stderr)?,
+        stdout: String::from_utf8(raw_output.stdout).context(BuildErrorKind::OtherError)?,
+        stderr: String::from_utf8(raw_output.stderr).context(BuildErrorKind::OtherError)?,
     };
 
     if !raw_output.status.success() {
-        bail!(ErrorKind::CommandFailed(
-            executable.get_name(),
-            raw_output.status.code().unwrap_or(-1),
-            output.stderr,
-        ));
+        bail!(BuildErrorKind::CommandFailed {
+            command: executable.get_name(),
+            code: raw_output.status.code().unwrap_or(-1),
+            stderr: output.stderr,
+        });
     }
 
-    let version_regex = Regex::new(&format!(r"{}\s(\S+)", executable.get_name()))?;
+    let version_regex = Regex::new(&format!(r"{}\s(\S+)", executable.get_name()))
+        .context(BuildErrorKind::OtherError)?;
 
     match version_regex.captures(&(output.stdout + &output.stderr)) {
-        Some(captures) => Ok(Version::parse(&captures[1])?),
+        Some(captures) => Ok(Version::parse(&captures[1]).context(BuildErrorKind::OtherError)?),
 
-        None => bail!(ErrorKind::InternalError(
-            "Unable to find executable version".into()
-        )),
+        None => Err(Error::from(BuildErrorKind::InternalError(
+            "Unable to find executable version".into(),
+        ))),
     }
 }
