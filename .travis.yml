@@ -1,25 +1,37 @@
 language: rust
 cache: cargo
+rust: nightly
 
-rust:
-  - nightly
+matrix:
+  include:
+    - name: "Check with Clippy"
+      install:
+        - rustup component add clippy
+      script:
+        - cargo clippy -- --verbose
 
-before_script:
-  - export PATH=$HOME/.cargo/bin:$PATH
-  - cargo install xargo || echo "xargo already installed"
-  - cargo install ptx-linker || echo "ptx-linker already installed"
-  - cargo install cargo-update || echo "cargo-update already installed"
-  - cargo install cargo-travis || echo "cargo-travis already installed"
-  - cargo install-update -a # update outdated cached binaries
-  - rustup component add rust-src
+    - name: "Check with Rustfmt"
+      install:
+        - rustup component add rustfmt
+      script:
+        - cargo fmt -- --check
 
-script:
-  - cargo test
-  - cargo doc --no-deps
+    - name: "Run tests"
+      install:
+        - cargo install -f ptx-linker
+        - rustup target add nvptx64-nvidia-cuda
+      script:
+        - cargo test --verbose
 
-after_success:
-  - cargo doc-upload
+  allow_failures:
+    - name: "Check with Clippy"
+    - name: "Check with Rustfmt"
 
 notifications:
   email:
     on_success: never
+
+branches:
+  only:
+    - master
+    - /^v\d+\.\d+\.\d+.*$/

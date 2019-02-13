@@ -1,6 +1,6 @@
 [package]
 name = "ptx-builder"
-version = "0.5.2"
+version = "0.5.3"
 authors = ["Denys Zariaiev <denys.zariaiev@gmail.com>"]
 license = "MIT"
 edition = "2018"
@@ -8,7 +8,7 @@ edition = "2018"
 readme = "README.md"
 description = "NVPTX build helper"
 repository = "https://github.com/denzp/rust-ptx-builder"
-documentation = "https://denzp.github.io/rust-ptx-builder/master/ptx_builder/index.html"
+documentation = "https://docs.rs/ptx-builder"
 categories = ["development-tools", "development-tools::build-utils"]
 keywords = ["cuda", "nvptx", "gpgpu"]
 
@@ -17,7 +17,7 @@ exclude = [
 ]
 
 [dependencies]
-error-chain = "0.12"
+failure = "0.1"
 colored = "1.6"
 toml = "0.4"
 semver = "0.9"
@@ -30,4 +30,4 @@ antidote = "1.0"
 [badges]
 appveyor = { repository = "denzp/rust-ptx-builder", branch = "master", service = "github" }
 travis-ci = { repository = "denzp/rust-ptx-builder", branch = "master" }
-maintenance = { status = "experimental" }
+maintenance = { status = "passively-maintained" }

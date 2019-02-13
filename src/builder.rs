@@ -4,21 +4,21 @@ use std::fs::{read_to_string, write, File};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
-use error_chain::bail;
+use failure::ResultExt;
 use lazy_static::*;
 use regex::Regex;
 
 use crate::error::*;
-use crate::executable::{ExecutableRunner, Xargo};
+use crate::executable::{Cargo, ExecutableRunner, Linker};
 use crate::source::Crate;
-use crate::target::TargetInfo;
 
 const LAST_BUILD_CMD: &str = ".last-build-command";
+const TARGET_NAME: &str = "nvptx64-nvidia-cuda";
 
 /// Core of the crate - PTX assembly build controller.
+#[derive(Debug)]
 pub struct Builder {
     source_crate: Crate,
-    target: TargetInfo,
 
     profile: Profile,
     colors: bool,
@@ -26,6 +26,7 @@ pub struct Builder {
 }
 
 /// Successful build output.
+#[derive(Debug)]
 pub struct BuildOutput<'a> {
     builder: &'a Builder,
     output_path: PathBuf,
@@ -33,6 +34,7 @@ pub struct BuildOutput<'a> {
 }
 
 /// Non-failed build status.
+#[derive(Debug)]
 pub enum BuildStatus<'a> {
     /// The CUDA crate building was performed without errors.
     Success(BuildOutput<'a>),
@@ -43,7 +45,6 @@ pub enum BuildStatus<'a> {
     NotNeeded,
 }
 
-#[derive(PartialEq, Clone)]
 /// Debug / Release profile.
 ///
 /// # Usage
@@ -58,6 +59,7 @@ pub enum BuildStatus<'a> {
 /// # Ok(())
 /// # }
 /// ```
+#[derive(PartialEq, Clone, Debug)]
 pub enum Profile {
     /// Equivalent for `cargo-build` **without** `--release` flag.
     Debug,
@@ -66,7 +68,6 @@ pub enum Profile {
     Release,
 }
 
-#[derive(Clone, Copy)]
 /// Build specified crate type.
 ///
 /// Mandatory for mixed crates - that have both `lib.rs` and `main.rs`,
@@ -88,6 +89,7 @@ pub enum Profile {
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Clone, Copy, Debug)]
 pub enum CrateType {
     Library,
     Binary,
@@ -116,8 +118,7 @@ impl Builder {
     /// ```
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         Ok(Builder {
-            source_crate: Crate::analyse(path).chain_err(|| "Unable to analyse source crate")?,
-            target: TargetInfo::new().chain_err(|| "Unable to get target details")?,
+            source_crate: Crate::analyse(path).context("Unable to analyse source crate")?,
 
             profile: Profile::Release, // TODO: choose automatically, e.g.: `env::var("PROFILE").unwrap_or("release".to_string())`
             colors: true,
@@ -139,7 +140,7 @@ impl Builder {
         !is_rls_build && !is_recursive_build
     }
 
-    /// Disable colors for internal calls to `xargo` (and eventually `cargo`).
+    /// Disable colors for internal calls to `cargo`.
     pub fn disable_colors(mut self) -> Self {
         self.colors = false;
         self
@@ -164,13 +165,16 @@ impl Builder {
         self
     }
 
-    /// Performs an actual build: runs `xargo` with proper flags and environment.
+    /// Performs an actual build: runs `cargo` with proper flags and environment.
     pub fn build(&self) -> Result<BuildStatus> {
         if !Self::is_build_needed() {
             return Ok(BuildStatus::NotNeeded);
         }
 
-        let mut xargo = ExecutableRunner::new(Xargo);
+        // Verify `ptx-linker` version.
+        ExecutableRunner::new(Linker).with_args(vec!["-V"]).run()?;
+
+        let mut cargo = ExecutableRunner::new(Cargo);
         let mut args = Vec::new();
 
         args.push("rustc");
@@ -183,7 +187,7 @@ impl Builder {
         args.push(if self.colors { "always" } else { "never" });
 
         args.push("--target");
-        args.push(self.target.get_target_name());
+        args.push(TARGET_NAME);
 
         match self.crate_type {
             Some(CrateType::Binary) => {
@@ -201,24 +205,23 @@ impl Builder {
         args.push("-v");
         args.push("--");
         args.push("--crate-type");
-        args.push("dylib");
+        args.push("cdylib");
+        args.push("-Zcrate-attr=no_main");
 
         let output_path = {
             self.source_crate
                 .get_output_path()
-                .chain_err(|| "Unable to create output path")?
+                .context("Unable to create output path")?
         };
 
-        xargo
+        cargo
             .with_args(&args)
             .with_cwd(self.source_crate.get_path())
             .with_env("PTX_CRATE_BUILDING", "1")
-            .with_env("RUSTC", "rustc-dylib-wrapper")
-            .with_env("CARGO_TARGET_DIR", output_path.clone())
-            .with_env("RUST_TARGET_PATH", self.target.get_path());
+            .with_env("CARGO_TARGET_DIR", output_path.clone());
 
-        let xargo_output = xargo.run().map_err(|error| match error {
-            Error(ErrorKind::CommandFailed(_, _, stderr), _) => {
+        let cargo_output = cargo.run().map_err(|error| match error.kind() {
+            BuildErrorKind::CommandFailed { stderr, .. } => {
                 let lines = stderr
                     .trim_matches('\n')
                     .split('\n')
@@ -226,18 +229,18 @@ impl Builder {
                     .map(String::from)
                     .collect();
 
-                ErrorKind::BuildFailed(lines).into()
+                Error::from(BuildErrorKind::BuildFailed(lines))
             }
 
             _ => error,
         })?;
 
         Ok(BuildStatus::Success(
-            self.prepare_output(output_path, &xargo_output.stderr)?,
+            self.prepare_output(output_path, &cargo_output.stderr)?,
         ))
     }
 
-    fn prepare_output(&self, output_path: PathBuf, xargo_stderr: &str) -> Result<BuildOutput> {
+    fn prepare_output(&self, output_path: PathBuf, cargo_stderr: &str) -> Result<BuildOutput> {
         lazy_static! {
             static ref SUFFIX_REGEX: Regex =
                 Regex::new(r"-C extra-filename=([\S]+)").expect("Unable to parse regex...");
@@ -245,18 +248,19 @@ impl Builder {
 
         let crate_name = self.source_crate.get_output_file_prefix();
 
+        // We need the build command to get real output filename.
         let build_command = {
-            xargo_stderr
+            cargo_stderr
                 .trim_matches('\n')
                 .split('\n')
                 .find(|line| {
                     line.contains(&format!("--crate-name {}", crate_name))
-                        && line.contains("--crate-type dylib")
+                        && line.contains("--crate-type cdylib")
                 })
                 .map(|line| BuildCommand::Realtime(line.to_string()))
                 .or_else(|| Self::load_cached_build_command(&output_path))
                 .ok_or_else(|| {
-                    Error::from(ErrorKind::InternalError(String::from(
+                    Error::from(BuildErrorKind::InternalError(String::from(
                         "Unable to find build command of the device crate",
                     )))
                 })?
@@ -270,8 +274,8 @@ impl Builder {
             Some(caps) => caps[1].to_string(),
 
             None => {
-                bail!(ErrorKind::InternalError(String::from(
-                    "Unable to find `extra-filename` rustc flag"
+                bail!(BuildErrorKind::InternalError(String::from(
+                    "Unable to find `extra-filename` rustc flag",
                 )));
             }
         };
@@ -295,7 +299,8 @@ impl Builder {
     }
 
     fn store_cached_build_command(output_path: &Path, command: &str) -> Result<()> {
-        write(output_path.join(LAST_BUILD_CMD), command.as_bytes())?;
+        write(output_path.join(LAST_BUILD_CMD), command.as_bytes())
+            .context(BuildErrorKind::OtherError)?;
 
         Ok(())
     }
@@ -331,7 +336,7 @@ impl<'a> BuildOutput<'a> {
     /// ```
     pub fn get_assembly_path(&self) -> PathBuf {
         self.output_path
-            .join(self.builder.target.get_target_name())
+            .join(TARGET_NAME)
             .join(self.builder.profile.to_string())
             .join("deps")
             .join(format!(
@@ -362,11 +367,13 @@ impl<'a> BuildOutput<'a> {
     pub fn dependencies(&self) -> Result<Vec<PathBuf>> {
         let mut deps_contents = {
             self.get_deps_file_contents()
-                .chain_err(|| "Unable to get crate deps")?
+                .context("Unable to get crate deps")?
         };
 
         if deps_contents.is_empty() {
-            bail!(ErrorKind::InternalError(String::from("Empty deps file")));
+            bail!(BuildErrorKind::InternalError(String::from(
+                "Empty deps file",
+            )));
         }
 
         deps_contents = deps_contents
@@ -392,7 +399,7 @@ impl<'a> BuildOutput<'a> {
     fn get_deps_file_contents(&self) -> Result<String> {
         let crate_deps_path = self
             .output_path
-            .join(self.builder.target.get_target_name())
+            .join(TARGET_NAME)
             .join(self.builder.profile.to_string())
             .join(format!(
                 "{}.d",
@@ -401,10 +408,14 @@ impl<'a> BuildOutput<'a> {
                     .get_deps_file_prefix(self.builder.crate_type)?
             ));
 
-        let mut crate_deps_reader = BufReader::new(File::open(crate_deps_path)?);
+        let mut crate_deps_reader =
+            BufReader::new(File::open(crate_deps_path).context(BuildErrorKind::OtherError)?);
+
         let mut crate_deps_contents = String::new();
 
-        crate_deps_reader.read_to_string(&mut crate_deps_contents)?;
+        crate_deps_reader
+            .read_to_string(&mut crate_deps_contents)
+            .context(BuildErrorKind::OtherError)?;
 
         Ok(crate_deps_contents)
     }

@@ -2,12 +2,11 @@
 [![Build Status](https://travis-ci.org/denzp/rust-ptx-builder.svg?branch=master)](https://travis-ci.org/denzp/rust-ptx-builder)
 [![Build status](https://ci.appveyor.com/api/projects/status/5m0du8548xh1fjph/branch/master?svg=true)](https://ci.appveyor.com/project/denzp/rust-ptx-builder/branch/master)
 [![Current Version](https://img.shields.io/crates/v/ptx-builder.svg)](https://crates.io/crates/ptx-builder)
-[![Docs](https://img.shields.io/badge/docs-master-blue.svg)](https://denzp.github.io/rust-ptx-builder/master/ptx_builder/index.html)
+[![Docs](https://docs.rs/ptx-builder/badge.svg)](https://docs.rs/ptx-builder)
 
 ## New Release: 0.5 🎉
 ### Say goodbye to proxy crate approach
 This allows us to use single-source CUDA in **binary**-only crates (ones without `lib.rs`).
-New approach might seem a bit hacky with overriding Cargo behavior and enforcing `--crate-type dylib`, but in the end, development workflow became much more convinient.
 
 ### Development breaking changes
 The crate does not provide a default `panic_handler` anymore.
@@ -32,7 +31,8 @@ use ptx_builder::error::Result;
 use ptx_builder::prelude::*;
 
 fn main() -> Result<()> {
-    CargoAdapter::with_env_var("KERNEL_PTX_PATH").build(Builder::new(".")?);
+    let builder = Builder::new(".")?;
+    CargoAdapter::with_env_var("KERNEL_PTX_PATH").build(builder);
 }
 ```
 
@@ -51,14 +51,13 @@ It can be used in a [cargo build script](http://doc.crates.io/build-script.html)
 [PTX] Unable to get target details
 [PTX]
 [PTX] caused by:
-[PTX]   Command not found in PATH: 'ptx-linker'. You can install it with: 'cargo install ptx-linker'.
+[PTX]   Command not found in PATH: 'rust-ptx-linker'. You can install it with: 'cargo install ptx-linker'.
 ```
 
 ## Prerequirements
-The library depends on [ptx-linker](https://crates.io/crates/ptx-linker) and [xargo](https://crates.io/crates/xargo).
-Both can be installed from crates.io:
+The library depends on a fresh Nightly and [ptx-linker](https://crates.io/crates/ptx-linker).
+The latter can be installed from crates.io:
 ```
-cargo install xargo
 cargo install ptx-linker
 ```
 
@@ -85,6 +84,7 @@ use ptx_builder::error::Result;
 use ptx_builder::prelude::*;
 
 fn main() -> Result<()> {
-    CargoAdapter::with_env_var("KERNEL_PTX_PATH").build(Builder::new(".")?);
+    let builder = Builder::new(".")?;
+    CargoAdapter::with_env_var("KERNEL_PTX_PATH").build(builder);
 }
 ```

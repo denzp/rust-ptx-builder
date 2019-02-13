@@ -1,14 +1,11 @@
-#[macro_use]
-extern crate lazy_static;
-extern crate antidote;
-extern crate ptx_builder;
-
-use antidote::Mutex;
 use std::env;
 use std::env::current_dir;
 use std::fs::{remove_dir_all, File};
 use std::io::prelude::*;
 use std::path::PathBuf;
+
+use antidote::Mutex;
+use lazy_static::*;
 
 use ptx_builder::error::*;
 use ptx_builder::prelude::*;
@@ -26,13 +23,11 @@ fn should_provide_output_path() {
 
     match builder.disable_colors().build().unwrap() {
         BuildStatus::Success(output) => {
-            assert!(
-                output.get_assembly_path().starts_with(
-                    env::temp_dir()
-                        .join("ptx-builder-0.5")
-                        .join("sample_ptx_crate"),
-                )
-            );
+            assert!(output.get_assembly_path().starts_with(
+                env::temp_dir()
+                    .join("ptx-builder-0.5")
+                    .join("sample_ptx_crate"),
+            ));
         }
 
         BuildStatus::NotNeeded => unreachable!(),
@@ -55,12 +50,10 @@ fn should_write_assembly() {
                 .read_to_string(&mut assembly_contents)
                 .unwrap();
 
-            assert!(
-                output
-                    .get_assembly_path()
-                    .to_string_lossy()
-                    .contains("release")
-            );
+            assert!(output
+                .get_assembly_path()
+                .to_string_lossy()
+                .contains("release"));
 
             assert!(assembly_contents.contains(".visible .entry the_kernel("));
         }
@@ -85,12 +78,10 @@ fn should_build_application_crate() {
                 .read_to_string(&mut assembly_contents)
                 .unwrap();
 
-            assert!(
-                output
-                    .get_assembly_path()
-                    .to_string_lossy()
-                    .contains("release")
-            );
+            assert!(output
+                .get_assembly_path()
+                .to_string_lossy()
+                .contains("release"));
 
             assert!(assembly_contents.contains(".visible .entry the_kernel("));
         }
@@ -122,12 +113,10 @@ fn should_build_mixed_crate_lib() {
                 .read_to_string(&mut assembly_contents)
                 .unwrap();
 
-            assert!(
-                output
-                    .get_assembly_path()
-                    .to_string_lossy()
-                    .contains("release")
-            );
+            assert!(output
+                .get_assembly_path()
+                .to_string_lossy()
+                .contains("release"));
 
             assert!(assembly_contents.contains(".visible .entry the_kernel("));
         }
@@ -159,12 +148,10 @@ fn should_build_mixed_crate_bin() {
                 .read_to_string(&mut assembly_contents)
                 .unwrap();
 
-            assert!(
-                output
-                    .get_assembly_path()
-                    .to_string_lossy()
-                    .contains("release")
-            );
+            assert!(output
+                .get_assembly_path()
+                .to_string_lossy()
+                .contains("release"));
 
             assert!(assembly_contents.contains(".visible .entry the_kernel("));
         }
@@ -195,12 +182,10 @@ fn should_handle_rebuild_without_changes() {
                 .read_to_string(&mut assembly_contents)
                 .unwrap();
 
-            assert!(
-                output
-                    .get_assembly_path()
-                    .to_string_lossy()
-                    .contains("release")
-            );
+            assert!(output
+                .get_assembly_path()
+                .to_string_lossy()
+                .contains("release"));
 
             assert!(assembly_contents.contains(".visible .entry the_kernel("));
         }
@@ -230,12 +215,10 @@ fn should_write_assembly_in_debug_mode() {
                 .read_to_string(&mut assembly_contents)
                 .unwrap();
 
-            assert!(
-                output
-                    .get_assembly_path()
-                    .to_string_lossy()
-                    .contains("debug")
-            );
+            assert!(output
+                .get_assembly_path()
+                .to_string_lossy()
+                .contains("debug"));
 
             assert!(assembly_contents.contains(".visible .entry the_kernel("));
         }
@@ -264,8 +247,8 @@ fn should_report_about_build_failure() {
 
     let crate_absoulte_path_str = crate_absoulte_path.display().to_string();
 
-    match output {
-        Err(Error(ErrorKind::BuildFailed(diagnostics), _)) => {
+    match output.unwrap_err().kind() {
+        BuildErrorKind::BuildFailed(diagnostics) => {
             assert_eq!(
                 diagnostics
                     .into_iter()
@@ -296,8 +279,7 @@ fn should_report_about_build_failure() {
             );
         }
 
-        Ok(_) => unreachable!("it should fail"),
-        Err(_) => unreachable!("it should fail with proper error"),
+        _ => unreachable!("it should fail with proper error"),
     }
 }
 

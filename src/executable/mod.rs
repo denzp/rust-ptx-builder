@@ -31,9 +31,6 @@ pub trait Executable {
 /// `cargo` command.
 pub struct Cargo;
 
-/// `xargo` command.
-pub struct Xargo;
-
 /// `ptx-linker` command.
 pub struct Linker;
 
@@ -51,7 +48,7 @@ impl Executable for Cargo {
     }
 
     fn get_required_version(&self) -> Option<VersionReq> {
-        Some(VersionReq::parse(">= 1.30.0-nightly").unwrap())
+        Some(VersionReq::parse(">= 1.34.0-nightly").unwrap())
     }
 
     fn get_current_version(&self) -> Result<Version> {
@@ -67,7 +64,7 @@ impl Executable for Cargo {
 
 impl Executable for Linker {
     fn get_name(&self) -> String {
-        String::from("ptx-linker")
+        String::from("rust-ptx-linker")
     }
 
     fn get_verification_hint(&self) -> String {
@@ -79,24 +76,6 @@ impl Executable for Linker {
     }
 
     fn get_required_version(&self) -> Option<VersionReq> {
-        Some(VersionReq::parse(">= 0.8.1").unwrap())
-    }
-}
-
-impl Executable for Xargo {
-    fn get_name(&self) -> String {
-        String::from("xargo")
-    }
-
-    fn get_verification_hint(&self) -> String {
-        String::from("You can install it with: 'cargo install xargo'")
-    }
-
-    fn get_version_hint(&self) -> String {
-        String::from("You can update it with: 'cargo install -f xargo'")
-    }
-
-    fn get_required_version(&self) -> Option<VersionReq> {
-        Some(VersionReq::parse(">= 0.3.12").unwrap())
+        Some(VersionReq::parse(">= 0.9.0").unwrap())
     }
 }
