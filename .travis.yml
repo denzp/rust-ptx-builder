@@ -3,7 +3,6 @@ cache: cargo
 rust: nightly
 
 matrix:
-  fast_finish: true
   include:
     - name: "Check with Clippy"
       install:
@@ -23,6 +22,10 @@ matrix:
         - rustup target add nvptx64-nvidia-cuda
       script:
         - cargo test --verbose
+
+  allow_failures:
+    - name: "Check with Clippy"
+    - name: "Check with Rustfmt"
 
 notifications:
   email:
