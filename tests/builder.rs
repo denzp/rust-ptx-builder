@@ -273,7 +273,7 @@ fn should_report_about_build_failure() {
                     String::from(
                         "For more information about this error, try `rustc --explain E0425`.",
                     ),
-                    String::from("error: Could not compile `faulty-ptx_crate`."),
+                    String::from("error: could not compile `faulty-ptx_crate`."),
                     String::from(""),
                 ]
             );

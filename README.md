@@ -37,7 +37,7 @@ fn main() -> Result<()> {
 ```
 
 ### Documentation improvements
-This release comes with a significant documentation improvement! [Check it out](https://denzp.github.io/rust-ptx-builder/master/ptx_builder/index.html) :)
+This release comes with a significant documentation improvement! [Check it out](https://docs.rs/ptx-builder) :)
 
 ## Purpose
 The library should facilitate CUDA development with Rust.
@@ -60,16 +60,6 @@ The latter can be installed from crates.io:
 ```
 cargo install ptx-linker
 ```
-
-### Windows users!
-Unfortunately, due to [rustc-llvm-proxy#1](/denzp/rustc-llvm-proxy/issues/1) **MSVS** targets are not supported yet.
-
-You might face similar errors:
-```
-Unable to find symbol 'LLVMContextCreate' in the LLVM shared lib
-```
-
-For now the only solution is to use **GNU** targets.
 
 ## Usage
 First, you need to specify a build script in host crate's `Cargo.toml` and declare the library as a *build-dependency*:
